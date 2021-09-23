@@ -8,44 +8,54 @@ on:
 
 jobs:
   mingw:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     strategy:
       matrix:
-        config: [".ci/config_windows", ".ci/config_windows64"]
+        suffix: ["32", "64"]
     steps:
       - uses: actions/checkout@v2
         with:
           path: main-build
 
-      - uses: actions/checkout@v2
-        with:
-          repository: skullernet/q2pro-mgw-sdk
-          path: deps-build
-
-      - uses: actions/cache@v2
-        id: cache-deps
-        with:
-          path: q2pro-mgw-sdk
-          key: ${{ hashFiles('deps-build/Makefile') }}
-
-      - name: Install MinGW-w64
+      - name: Install dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y gcc-mingw-w64
-
-      - name: Build dependencies
-        if: steps.cache-deps.outputs.cache-hit != 'true'
-        working-directory: deps-build
-        run: make install DESTDIR=../q2pro-mgw-sdk
+          wget -nv https://skuller.net/q2pro/q2pro-mgw-sdk.tar.gz
+          tar xf q2pro-mgw-sdk.tar.gz
 
       - name: Build
         working-directory: main-build
         run: make V=1
         env:
-          CONFIG_FILE: "${{ matrix.config }}"
+          CONFIG_FILE: ".ci/config_windows${{ matrix.suffix }}"
+
+  llvm-mingw:
+    runs-on: ubuntu-18.04
+    strategy:
+      matrix:
+        suffix: ["32", "64"]
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          path: main-build
+
+      - name: Install dependencies
+        run: |
+          wget -nv https://github.com/mstorsjo/llvm-mingw/releases/download/20210423/llvm-mingw-20210423-msvcrt-ubuntu-18.04-x86_64.tar.xz
+          wget -nv https://skuller.net/q2pro/q2pro-mgw-sdk.tar.gz
+          tar xf llvm-mingw-20210423-msvcrt-ubuntu-18.04-x86_64.tar.xz
+          tar xf q2pro-mgw-sdk.tar.gz
+          echo "$GITHUB_WORKSPACE/llvm-mingw-20210423-msvcrt-ubuntu-18.04-x86_64/bin" >> $GITHUB_PATH
+
+      - name: Build
+        working-directory: main-build
+        run: make V=1
+        env:
+          CONFIG_FILE: ".ci/config_windows${{ matrix.suffix }}"
 
   linux:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     strategy:
       matrix:
         cc: [gcc, clang]
