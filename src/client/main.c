@@ -1835,7 +1835,6 @@ void CL_ClearState(void)
     OGG_Stop();
     SCR_StopCinematic();
     CL_ClearEffects();
-    CL_ClearLightStyles();
     CL_ClearTEnts();
 #ifdef AQTION_EXTENSION
 	CL_Clear3DGhudQueue();
@@ -2935,7 +2934,7 @@ void CL_LoadFilterList(string_entry_t **list, const char *name, const char *comm
     // load new list
     len = FS_LoadFileEx(name, (void **)&raw, FS_TYPE_REAL, TAG_FILESYSTEM);
     if (!raw) {
-        if (len != Q_ERR_NOENT)
+        if (len != Q_ERR(ENOENT))
             Com_EPrintf("Couldn't load %s: %s\n", name, Q_ErrorString(len));
         return;
     }
@@ -3338,7 +3337,7 @@ static void CL_WriteConfig_f(void)
         Cvar_WriteVariables(f, mask, modified);
     }
 
-    if (FS_FCloseFile(f))
+    if (FS_CloseFile(f))
         Com_EPrintf("Error writing %s\n", buffer);
     else
         Com_Printf("Wrote %s.\n", buffer);
@@ -3469,7 +3468,7 @@ static void CL_WriteConfig(void)
     qhandle_t f;
     int ret;
 
-    ret = FS_FOpenFile(COM_CONFIG_CFG, &f, FS_MODE_WRITE | FS_FLAG_TEXT);
+    ret = FS_OpenFile(COM_CONFIG_CFG, &f, FS_MODE_WRITE | FS_FLAG_TEXT);
     if (!f) {
         Com_EPrintf("Couldn't open %s for writing: %s\n",
                     COM_CONFIG_CFG, Q_ErrorString(ret));
@@ -3481,7 +3480,7 @@ static void CL_WriteConfig(void)
     Key_WriteBindings(f);
     Cvar_WriteVariables(f, CVAR_ARCHIVE, false);
 
-    if (FS_FCloseFile(f))
+    if (FS_CloseFile(f))
         Com_EPrintf("Error writing %s\n", COM_CONFIG_CFG);
 }
 
@@ -4465,19 +4464,12 @@ unsigned CL_Frame(unsigned msec)
         ref_extra -= ref_msec;
         R_FRAMES++;
 
-run_fx:
         // update audio after the 3D view was drawn
         S_Update();
-
-        // advance local effects for next frame
-#if USE_DLIGHTS
-        CL_RunDLights();
-#endif
-        CL_RunLightStyles();
     } else if (sync_mode == SYNC_SLEEP_10) {
         // force audio and effects update if not rendering
         CL_CalcViewValues();
-        goto run_fx;
+        S_Update();
     }
 
     // check connection timeout
