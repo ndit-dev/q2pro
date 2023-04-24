@@ -20,7 +20,7 @@ option('base-game',
 
 option('client-gtv',
   type: 'boolean',
-  value: false,
+  value: true,
   description: 'Experimental client GTV relay')
 
 option('client-ui',
@@ -195,4 +195,3 @@ option('zlib',
   type: 'feature',
   value: 'auto',
   description: 'zlib support')
-  
