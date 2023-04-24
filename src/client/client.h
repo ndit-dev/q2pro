@@ -492,6 +492,10 @@ extern char         cl_cmdbuf_text[MAX_STRING_CHARS];
 #define NOEXP_GRENADE   1
 #define NOEXP_ROCKET    2
 
+#define DLHACK_ROCKET_COLOR         1
+#define DLHACK_SMALLER_EXPLOSION    2
+#define DLHACK_NO_MUZZLEFLASH       4
+
 //
 // cvars
 //
@@ -510,7 +514,7 @@ extern cvar_t   *cl_noglow;
 extern cvar_t   *cl_nolerp;
 
 //STEPSOUND
-extern cvar_t   *cl_new_movement_sounds;
+extern cvar_t   *cl_enhanced_footsteps;
 
 #if USE_DEBUG
 #define SHOWNET(level, ...) \
@@ -535,6 +539,7 @@ extern cvar_t   *cl_vwep;
 
 extern cvar_t   *cl_disable_particles;
 extern cvar_t   *cl_disable_explosions;
+extern cvar_t   *cl_dlight_hacks;
 
 extern cvar_t   *cl_chat_notify;
 extern cvar_t   *cl_chat_sound;

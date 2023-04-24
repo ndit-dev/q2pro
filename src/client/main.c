@@ -38,7 +38,7 @@ cvar_t  *cl_async;
 cvar_t  *r_maxfps;
 cvar_t  *cl_autopause;
 
-cvar_t  *cl_new_movement_sounds;
+cvar_t  *cl_enhanced_footsteps;
 
 cvar_t  *cl_kickangles;
 cvar_t  *cl_rollhack;
@@ -57,6 +57,8 @@ cvar_t  *cl_thirdperson_range;
 
 cvar_t  *cl_disable_particles;
 cvar_t  *cl_disable_explosions;
+cvar_t  *cl_dlight_hacks;
+
 cvar_t  *cl_chat_notify;
 cvar_t  *cl_chat_sound;
 cvar_t  *cl_chat_filter;
@@ -3809,82 +3811,6 @@ static void cl_chat_sound_changed(cvar_t *self)
         self->integer = 1;
 }
 
-#if USE_AQTION
-
-static void cl_mk23_sound_changed(cvar_t *self)
-{
-    if (!Q_stricmp(self->string, "weapons/mk23fire0.wav"))
-        self->integer = 0;
-    else if (!Q_stricmp(self->string, "weapons/mk23fire1.wav"))
-        self->integer = 1;
-    else if (!Q_stricmp(self->string, "weapons/mk23fire2.wav"))
-        self->integer = 2;
-    else if (!self->integer && !COM_IsUint(self->string))
-        self->integer = 0;
-}
-
-static void cl_mp5_sound_changed(cvar_t *self)
-{
-    if (!Q_stricmp(self->string, "weapons/mp5fire0.wav"))
-        self->integer = 0;
-    else if (!Q_stricmp(self->string, "weapons/mp5fire1.wav"))
-        self->integer = 1;
-    else if (!Q_stricmp(self->string, "weapons/mp5fire2.wav"))
-        self->integer = 2;
-    else if (!self->integer && !COM_IsUint(self->string))
-        self->integer = 0;
-}
-
-static void cl_m4_sound_changed(cvar_t *self)
-{
-    if (!Q_stricmp(self->string, "weapons/m4a1fire0.wav"))
-        self->integer = 0;
-    else if (!Q_stricmp(self->string, "weapons/m4a1fire1.wav"))
-        self->integer = 1;
-    else if (!Q_stricmp(self->string, "weapons/m4a1fire2.wav"))
-        self->integer = 2;
-    else if (!self->integer && !COM_IsUint(self->string))
-        self->integer = 0;
-}
-
-static void cl_m3_sound_changed(cvar_t *self)
-{
-    if (!Q_stricmp(self->string, "weapons/m3fire0.wav"))
-        self->integer = 0;
-    else if (!Q_stricmp(self->string, "weapons/m3fire1.wav"))
-        self->integer = 1;
-    else if (!Q_stricmp(self->string, "weapons/m3fire2.wav"))
-        self->integer = 2;
-    else if (!self->integer && !COM_IsUint(self->string))
-        self->integer = 0;
-}
-
-static void cl_hc_sound_changed(cvar_t *self)
-{
-    if (!Q_stricmp(self->string, "weapons/hcfire0.wav"))
-        self->integer = 0;
-    else if (!Q_stricmp(self->string, "weapons/hcfire1.wav"))
-        self->integer = 1;
-    else if (!Q_stricmp(self->string, "weapons/hcfire2.wav"))
-        self->integer = 2;
-    else if (!self->integer && !COM_IsUint(self->string))
-        self->integer = 0;
-}
-
-static void cl_ssg_sound_changed(cvar_t *self)
-{
-    if (!Q_stricmp(self->string, "weapons/ssgfire0.wav"))
-        self->integer = 0;
-    else if (!Q_stricmp(self->string, "weapons/ssgfire1.wav"))
-        self->integer = 1;
-    else if (!Q_stricmp(self->string, "weapons/ssgfire2.wav"))
-        self->integer = 2;
-    else if (!self->integer && !COM_IsUint(self->string))
-        self->integer = 0;
-}
-
-#endif
-
 void cl_timeout_changed(cvar_t *self)
 {
     self->integer = 1000 * Cvar_ClampValue(self, 0, 24 * 24 * 60 * 60);
@@ -3996,7 +3922,7 @@ static void CL_InitLocal(void)
     cl_noglow = Cvar_Get("cl_noglow", "0", 0);
     cl_nolerp = Cvar_Get("cl_nolerp", "0", 0);
 
-    cl_new_movement_sounds = Cvar_Get("cl_new_movement_sounds", "0", 0);
+    cl_enhanced_footsteps= Cvar_Get("cl_enhanced_footsteps", "0", 0);
 
 #if USE_DISCORD && USE_CURL //rekkie -- discord -- s
     //rekkie -- external ip -- s
@@ -4043,6 +3969,8 @@ static void CL_InitLocal(void)
 
     cl_disable_particles = Cvar_Get("cl_disable_particles", "0", 0);
     cl_disable_explosions = Cvar_Get("cl_disable_explosions", "0", 0);
+    cl_dlight_hacks = Cvar_Get("cl_dlight_hacks", "0", 0);
+
     cl_gibs = Cvar_Get("cl_gibs", "1", 0);
     cl_gibs->changed = cl_gibs_changed;
 
@@ -4097,30 +4025,13 @@ static void CL_InitLocal(void)
 
     #if USE_AQTION
         cl_mk23_sound = Cvar_Get("cl_mk23_sound", "0", 0);
-        cl_mk23_sound->changed = cl_mk23_sound_changed;
-        cl_mk23_sound_changed(cl_mk23_sound);
-
         cl_mp5_sound = Cvar_Get("cl_mp5_sound", "0", 0);
-        cl_mp5_sound->changed = cl_mp5_sound_changed;
-        cl_mp5_sound_changed(cl_mp5_sound);
-
         cl_m4_sound = Cvar_Get("cl_m4_sound", "0", 0);
-        cl_m4_sound->changed = cl_m4_sound_changed;
-        cl_m4_sound_changed(cl_m4_sound);
-
         cl_m3_sound = Cvar_Get("cl_m3_sound", "0", 0);
-        cl_m3_sound->changed = cl_m3_sound_changed;
-        cl_m3_sound_changed(cl_m3_sound);
-
         cl_hc_sound = Cvar_Get("cl_hc_sound", "0", 0);
-        cl_hc_sound->changed = cl_hc_sound_changed;
-        cl_hc_sound_changed(cl_hc_sound);
-
         cl_ssg_sound = Cvar_Get("cl_ssg_sound", "0", 0);
-        cl_ssg_sound->changed = cl_ssg_sound_changed;
-        cl_ssg_sound_changed(cl_ssg_sound);
 
-		cl_indicators = Cvar_Get("cl_indicators", "1", 0);
+        cl_indicators = Cvar_Get("cl_indicators", "1", 0);
     #endif
 
 

@@ -208,7 +208,7 @@ static void parse_entity_event(int number)
         break;
     case EV_FOOTSTEP:
         if (cl_footsteps->integer){
-            if (strcmp(cl_new_movement_sounds->string, "0") == 0) {
+            if (strcmp(cl_enhanced_footsteps->string, "0") == 0) {
                 S_StartSound(NULL, number, CHAN_BODY, cl_sfx_footsteps[Q_rand() & 3], 1, ATTN_NORM, 0);
             } else {
                 int r = Q_rand() % 12;
@@ -225,7 +225,7 @@ static void parse_entity_event(int number)
         }
         break;
     case EV_FALLSHORT:
-        if (strcmp(cl_new_movement_sounds->string, "0") == 0) {
+        if (strcmp(cl_enhanced_footsteps->string, "0") == 0) {
             S_StartSound(NULL, number, CHAN_AUTO, cl_sfx_landing[0], 1, ATTN_NORM, 0);
         } else {
             S_StartSound(NULL, number, CHAN_BODY, cl_sfx_landing[Q_rand() % 8], 1, ATTN_NORM, 0);
@@ -807,7 +807,10 @@ static void CL_AddPacketEntities(void)
                 if (!(cl_disable_particles->integer & NOPART_ROCKET_TRAIL)) {
                     CL_RocketTrail(cent->lerp_origin, ent.origin, cent);
                 }
-                V_AddLight(ent.origin, 200, 1, 1, 0);
+                if (cl_dlight_hacks->integer & DLHACK_ROCKET_COLOR)
+                    V_AddLight(ent.origin, 200, 1, 0.23f, 0);
+                else
+                    V_AddLight(ent.origin, 200, 1, 1, 0);
             } else if (effects & EF_BLASTER) {
                 if (effects & EF_TRACKER) {
                     CL_BlasterTrail2(cent->lerp_origin, ent.origin);
