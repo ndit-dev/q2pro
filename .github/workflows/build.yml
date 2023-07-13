@@ -148,7 +148,7 @@ jobs:
           path: |
             builddir/q2pro.exe
             builddir/q2proded.exe
-            builddir/gamex86_64.dll
+            builddir/gamex86.dll
 
   linux64-x11:
     runs-on: ubuntu-20.04
