@@ -68,6 +68,7 @@ cvar_t  *cl_changemapcmd;
 cvar_t  *cl_beginmapcmd;
 
 cvar_t  *cl_ignore_stufftext;
+cvar_t  *cl_allow_vid_restart;
 
 cvar_t  *cl_gibs;
 #if USE_FPS
@@ -2417,7 +2418,7 @@ static void CL_ConnectionlessPacket(void)
 
     c = Cmd_Argv(0);
 
-    Com_DPrintf("%s: %s\n", NET_AdrToString(&net_from), string);
+    Com_DPrintf("%s: %s\n", NET_AdrToString(&net_from), Com_MakePrintable(string));
 
     // challenge from the server we are connecting to
     if (!strcmp(c, "challenge")) {
@@ -3645,6 +3646,23 @@ Perform complete restart of the renderer subsystem.
 */
 static void CL_RestartRefresh_f(void)
 {
+    static bool warned;
+
+    if (!cl_allow_vid_restart->integer && strcmp(Cmd_Argv(1), "force")) {
+        if (Cmd_From() == FROM_STUFFTEXT)
+            return;
+
+        Com_Printf("Manual `vid_restart' command ignored.\n");
+        if (warned)
+            return;
+
+        Com_Printf("Video settings are automatically applied by " PRODUCT ", thus manual "
+                   "`vid_restart' is never needed. To force restart of video subsystem, "
+                   "use `vid_restart force', or set `cl_allow_vid_restart' variable to 1 "
+                   "to restore old behavior of this command.\n");
+        warned = true;
+        return;
+    }
     CL_RestartRefresh(true);
 }
 
@@ -3671,7 +3689,7 @@ static void exec_server_string(cmdbuf_t *buf, const char *text)
         return;        // no tokens
     }
 
-    Com_DPrintf("stufftext: %s\n", text);
+    Com_DPrintf("stufftext: %s\n", Com_MakePrintable(text));
 
     s = Cmd_Argv(0);
 
@@ -3991,6 +4009,7 @@ static void CL_InitLocal(void)
     cl_beginmapcmd = Cvar_Get("cl_beginmapcmd", "", 0);
 
     cl_ignore_stufftext = Cvar_Get("cl_ignore_stufftext", "0", 0);
+    cl_allow_vid_restart = Cvar_Get("cl_allow_vid_restart", "0", 0);
 
     cl_protocol = Cvar_Get("cl_protocol", "0", 0);
 

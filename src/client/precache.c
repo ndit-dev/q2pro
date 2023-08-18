@@ -228,6 +228,8 @@ void CL_RegisterBspModels(void)
     ret = BSP_Load(name, &cl.bsp);
     if (cl.bsp == NULL) {
         Com_Error(ERR_DROP, "Couldn't load %s: %s", name, BSP_ErrorString(ret));
+        if (!allow_download->value || !allow_download_maps->value)
+            Com_Error(ERR_DROP, "Check your download settings: allow_download = %i, allow_download_maps = %i", allow_download->value, allow_download_maps->value);
     }
 
     if (cl.bsp->checksum != atoi(cl.configstrings[CS_MAPCHECKSUM])) {
@@ -237,6 +239,7 @@ void CL_RegisterBspModels(void)
         } else {
             Com_Error(ERR_DROP, "Local map version differs from server: %i != %s",
                       cl.bsp->checksum, cl.configstrings[CS_MAPCHECKSUM]);
+            Com_Error(ERR_DROP, "Recommend removing maps/%s locally and reconnecting", cl.bsp->name);
         }
     }
 

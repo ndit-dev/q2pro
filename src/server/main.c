@@ -2124,7 +2124,7 @@ static void init_rate_limits(void)
 
 static void sv_rate_changed(cvar_t *self)
 {
-    Cvar_ClampInteger(sv_min_rate, 100, Cvar_ClampInteger(sv_max_rate, 1000, INT_MAX));
+    Cvar_ClampInteger(sv_min_rate, 1500, Cvar_ClampInteger(sv_max_rate, 1500, INT_MAX));
 }
 
 void sv_sec_timeout_changed(cvar_t *self)
@@ -2234,7 +2234,7 @@ void SV_Init(void)
     sv_reserved_password = Cvar_Get("sv_reserved_password", "", CVAR_PRIVATE);
     sv_locked = Cvar_Get("sv_locked", "0", 0);
     sv_novis = Cvar_Get("sv_novis", "0", 0);
-    sv_downloadserver = Cvar_Get("sv_downloadserver", "", 0);
+    sv_downloadserver = Cvar_Get("sv_downloadserver", "http://gameassets.aqtiongame.com/", 0);
     sv_redirect_address = Cvar_Get("sv_redirect_address", "", 0);
 
 #if USE_DEBUG
@@ -2242,7 +2242,7 @@ void SV_Init(void)
     sv_pad_packets = Cvar_Get("sv_pad_packets", "0", 0);
 #endif
     sv_lan_force_rate = Cvar_Get("sv_lan_force_rate", "0", CVAR_LATCH);
-    sv_min_rate = Cvar_Get("sv_min_rate", "100", CVAR_LATCH);
+    sv_min_rate = Cvar_Get("sv_min_rate", "1500", CVAR_LATCH);
     sv_max_rate = Cvar_Get("sv_max_rate", "15000", CVAR_LATCH);
     sv_max_rate->changed = sv_min_rate->changed = sv_rate_changed;
     sv_max_rate->changed(sv_max_rate);
