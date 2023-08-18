@@ -1638,7 +1638,7 @@ int MSG_ReadChar(void)
     if (!buf) {
         c = -1;
     } else {
-        c = (signed char)buf[0];
+        c = (int8_t)buf[0];
     }
 
     return c;
@@ -1652,7 +1652,7 @@ int MSG_ReadByte(void)
     if (!buf) {
         c = -1;
     } else {
-        c = (unsigned char)buf[0];
+        c = (uint8_t)buf[0];
     }
 
     return c;
@@ -1666,7 +1666,7 @@ int MSG_ReadShort(void)
     if (!buf) {
         c = -1;
     } else {
-        c = (signed short)RL16(buf);
+        c = (int16_t)RL16(buf);
     }
 
     return c;
@@ -1680,7 +1680,7 @@ int MSG_ReadWord(void)
     if (!buf) {
         c = -1;
     } else {
-        c = (unsigned short)RL16(buf);
+        c = (uint16_t)RL16(buf);
     }
 
     return c;
@@ -1694,7 +1694,7 @@ int MSG_ReadLong(void)
     if (!buf) {
         c = -1;
     } else {
-        c = RL32(buf);
+        c = (int32_t)RL32(buf);
     }
 
     return c;
