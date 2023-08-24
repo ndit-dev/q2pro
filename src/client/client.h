@@ -261,6 +261,9 @@ typedef struct client_state_s {
     int         framediv;       // BASE_FRAMETIME/frametime
 #endif
 
+    qboolean	view_predict;
+	short		view_low;
+	short		view_high;
     configstring_t  baseconfigstrings[MAX_CONFIGSTRINGS];
     configstring_t  configstrings[MAX_CONFIGSTRINGS];
     char        mapname[MAX_QPATH]; // short format - q2dm1, etc

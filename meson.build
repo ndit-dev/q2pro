@@ -532,7 +532,7 @@ executable('q2proded', common_src, server_src,
   install:               system_wide,
 )
 
-shared_library('game' + cpu, action_src,
+shared_library('game' + cpu, game_src,
   name_prefix:           '',
   dependencies:          game_deps,
   include_directories:   'inc',

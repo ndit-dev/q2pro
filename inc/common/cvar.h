@@ -44,6 +44,7 @@ interface from being ambiguous.
 #define CVAR_FILES          BIT(13)     // r_reload when changed
 #define CVAR_REFRESH        BIT(14)     // vid_restart when changed
 #define CVAR_SOUND          BIT(15)     // snd_restart when changed
+#define CVAR_SYNC			BIT(20)     // Reki: network with aqtion
 
 #define CVAR_INFOMASK       (CVAR_USERINFO | CVAR_SERVERINFO)
 #define CVAR_MODIFYMASK     (CVAR_INFOMASK | CVAR_FILES | CVAR_REFRESH | CVAR_SOUND)

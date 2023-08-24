@@ -1211,7 +1211,6 @@ enum {
 // RAFAEL
 #define DF_QUADFIRE_DROP    BIT(16)
 
-/* action changes
 //ROGUE
 #define DF_NO_MINES         BIT(17)
 #define DF_NO_STACK_DOUBLE  BIT(18)
