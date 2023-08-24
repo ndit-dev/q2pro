@@ -227,19 +227,19 @@ void CL_RegisterBspModels(void)
     }
     ret = BSP_Load(name, &cl.bsp);
     if (cl.bsp == NULL) {
-        Com_Error(ERR_DROP, "Couldn't load %s: %s", name, BSP_ErrorString(ret));
-        if (!allow_download->value || !allow_download_maps->value)
-            Com_Error(ERR_DROP, "Check your download settings: allow_download = %i, allow_download_maps = %i", allow_download->value, allow_download_maps->value);
+        if (allow_download->integer < 1 || allow_download_maps->integer < 1)
+            Com_Error(ERR_DROP, "Couldn't load %s: %s\n\nCheck your allow_download settings; to auto-download, these should be set to 1:\nallow_download %i\nallow_download_maps %i", name, BSP_ErrorString(ret), (int)allow_download->value, (int)allow_download_maps->value);
+        else
+            Com_Error(ERR_DROP, "Couldn't load %s: %s", name, BSP_ErrorString(ret));
     }
 
     if (cl.bsp->checksum != atoi(cl.configstrings[CS_MAPCHECKSUM])) {
         if (cls.demo.playback) {
             Com_WPrintf("Local map version differs from demo: %i != %s\n",
-                        cl.bsp->checksum, cl.configstrings[CS_MAPCHECKSUM]);
+                cl.bsp->checksum, cl.configstrings[CS_MAPCHECKSUM]);
         } else {
-            Com_Error(ERR_DROP, "Local map version differs from server: %i != %s",
-                      cl.bsp->checksum, cl.configstrings[CS_MAPCHECKSUM]);
-            Com_Error(ERR_DROP, "Recommend removing maps/%s locally and reconnecting", cl.bsp->name);
+            Com_Error(ERR_DROP, "Local map version differs from server: %i != %s\nRecommend removing %s locally and reconnecting",
+                cl.bsp->checksum, cl.configstrings[CS_MAPCHECKSUM], cl.bsp->name);
         }
     }
 
