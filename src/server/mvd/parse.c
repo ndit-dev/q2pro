@@ -1000,7 +1000,7 @@ static void MVD_ParseServerData(mvd_t *mvd, int extrabits)
         Com_EPrintf("[%s] =!= Couldn't load %s: %s\n", mvd->name, string, BSP_ErrorString(ret));
         // continue with null visibility
     } else if (mvd->cm.cache->checksum != atoi(mvd->configstrings[CS_MAPCHECKSUM])) {
-        Com_EPrintf("[%s] =!= Local map version differs from server!\n", mvd->name);
+        Com_EPrintf("[%s] =!= Local map version differs from server!\nRecommend removing that file and reconnecting", mvd->name);
         CM_FreeMap(&mvd->cm);
     }
 
