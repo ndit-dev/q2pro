@@ -1726,6 +1726,22 @@ static void SV_Stop_f(void)
 
 #endif
 
+/*
+SV_Soundlist_f
+Lists all loaded sounds, good for debugging PF_SoundIndex overflows
+*/
+void SV_ListSounds_f(void)
+{
+    int i;
+    char *string;
+
+    Com_Printf("-- List of Loaded Sounds:\n");
+    for (i = 1; i < MAX_SOUNDS; i++) {
+        string = sv.configstrings[CS_SOUNDS + i];
+        Com_Printf("%i: %s\n", i, string);
+    }
+}
+
 //===========================================================
 
 static const cmdreg_t c_server[] = {
@@ -1772,6 +1788,7 @@ static const cmdreg_t c_server[] = {
     { "adduserinfoban", SV_AddInfoBan_f },
     { "deluserinfoban", SV_DelInfoBan_f },
     { "listuserinfobans", SV_ListInfoBans_f },
+    { "listsounds", SV_ListSounds_f },
 #if USE_MVD_CLIENT || USE_MVD_SERVER
     { "mvdrecord", SV_Record_f, SV_Record_c },
     { "mvdstop", SV_Stop_f },
@@ -1779,7 +1796,6 @@ static const cmdreg_t c_server[] = {
 
     { NULL }
 };
-
 
 /*
 ==================
