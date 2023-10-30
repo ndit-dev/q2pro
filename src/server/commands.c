@@ -1727,7 +1727,7 @@ static void SV_Stop_f(void)
 #endif
 
 /*
-SV_Soundlist_f
+SV_ListSounds_f
 Lists all loaded sounds, good for debugging PF_SoundIndex overflows
 */
 void SV_ListSounds_f(void)
