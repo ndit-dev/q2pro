@@ -43,6 +43,7 @@ cvar_t  *cl_enhanced_footsteps;
 cvar_t  *cl_kickangles;
 cvar_t  *cl_rollhack;
 cvar_t  *cl_noglow;
+cvar_t  *cl_nobob;
 cvar_t  *cl_nolerp;
 
 #if USE_DEBUG
@@ -68,8 +69,10 @@ cvar_t  *cl_changemapcmd;
 cvar_t  *cl_beginmapcmd;
 
 cvar_t  *cl_ignore_stufftext;
+cvar_t  *cl_allow_vid_restart;
 
 cvar_t  *cl_gibs;
+cvar_t  *cl_flares;
 #if USE_FPS
 cvar_t  *cl_updaterate;
 #endif
@@ -1287,7 +1290,7 @@ void CL_InitDiscord(void)
     }
 }
 
-void CL_RunDiscord() // Run in main loop
+void CL_RunDiscord(void) // Run in main loop
 {
     // Discord cvar disabled, or not running and connected to the Discord network
     if (cl_discord->value != 1 || discord.discord_found == false)
@@ -1339,7 +1342,7 @@ static void CL_ClearDiscordAcivity(void)
     memset(&discord.activity, 0, sizeof(discord.activity));
 }
 
-void CL_ShutdownDiscord()
+void CL_ShutdownDiscord(void)
 {
     Com_Printf("==== %s ====\n", __func__);
     CL_ClearDiscordAcivity();
@@ -1449,6 +1452,21 @@ void CL_UpdateRecordingSetting(void)
     MSG_WriteByte(clc_setting);
     MSG_WriteShort(CLS_RECORDING);
     MSG_WriteShort(rec);
+    MSG_FlushTo(&cls.netchan.message);
+}
+
+static void CL_UpdateFlaresSetting(void)
+{
+    if (cls.netchan.protocol != PROTOCOL_VERSION_Q2PRO) {
+        return;
+    }
+    if (!cl.csr.extended) {
+        return;
+    }
+
+    MSG_WriteByte(clc_setting);
+    MSG_WriteShort(CLS_NOFLARES);
+    MSG_WriteShort(!cl_flares->integer);
     MSG_FlushTo(&cls.netchan.message);
 }
 
@@ -1853,6 +1871,7 @@ void CL_ClearState(void)
 	CL_Clear3DGhudQueue();
 #endif
     LOC_FreeLocations();
+    CL_FreeDemoSnapshots();
 
     // wipe the entire cl structure
     BSP_Free(cl.bsp);
@@ -2332,7 +2351,7 @@ static void CL_Skins_f(void)
     CL_RegisterVWepModels();
 
     for (i = 0; i < MAX_CLIENTS; i++) {
-        s = cl.configstrings[CS_PLAYERSKINS + i];
+        s = cl.configstrings[cl.csr.playerskins + i];
         if (!s[0])
             continue;
         ci = &cl.clientinfo[i];
@@ -2356,7 +2375,7 @@ static void cl_noskins_changed(cvar_t *self)
     }
 
     for (i = 0; i < MAX_CLIENTS; i++) {
-        s = cl.configstrings[CS_PLAYERSKINS + i];
+        s = cl.configstrings[cl.csr.playerskins + i];
         if (!s[0])
             continue;
         ci = &cl.clientinfo[i];
@@ -2416,7 +2435,7 @@ static void CL_ConnectionlessPacket(void)
 
     c = Cmd_Argv(0);
 
-    Com_DPrintf("%s: %s\n", NET_AdrToString(&net_from), string);
+    Com_DPrintf("%s: %s\n", NET_AdrToString(&net_from), Com_MakePrintable(string));
 
     // challenge from the server we are connecting to
     if (!strcmp(c, "challenge")) {
@@ -2825,7 +2844,7 @@ Moved here from sound code so that command is always registered.
 */
 static void CL_PlaySound_c(genctx_t *ctx, int state)
 {
-    FS_File_g("sound", "*.wav", FS_SEARCH_SAVEPATH | FS_SEARCH_BYFILTER | FS_SEARCH_STRIPEXT, ctx);
+    FS_File_g("sound", ".wav", FS_SEARCH_RECURSIVE | FS_SEARCH_STRIPEXT, ctx);
 }
 
 static void CL_PlaySound_f(void)
@@ -2886,6 +2905,7 @@ void CL_Begin(void)
     CL_UpdateFootstepsSetting();
     CL_UpdatePredictSetting();
     CL_UpdateRecordingSetting();
+    CL_UpdateFlaresSetting();
 }
 
 /*
@@ -3466,7 +3486,13 @@ static size_t CL_Armor_m(char *buffer, size_t size)
 
 static size_t CL_WeaponModel_m(char *buffer, size_t size)
 {
-    return Q_strlcpy(buffer, cl.configstrings[CS_MODELS + cl.frame.ps.gunindex], size);
+    int i = cl.csr.models + (cl.frame.ps.gunindex & GUNINDEX_MASK);
+    return Q_strlcpy(buffer, cl.configstrings[i], size);
+}
+
+static size_t CL_NumEntities_m(char *buffer, size_t size)
+{
+    return Q_scnprintf(buffer, size, "%i", cl.frame.numEntities);
 }
 
 /*
@@ -3644,6 +3670,23 @@ Perform complete restart of the renderer subsystem.
 */
 static void CL_RestartRefresh_f(void)
 {
+    static bool warned;
+
+    if (!cl_allow_vid_restart->integer && strcmp(Cmd_Argv(1), "force")) {
+        if (Cmd_From() == FROM_STUFFTEXT)
+            return;
+
+        Com_Printf("Manual `vid_restart' command ignored.\n");
+        if (warned)
+            return;
+
+        Com_Printf("Video settings are automatically applied by " PRODUCT ", thus manual "
+                   "`vid_restart' is never needed. To force restart of video subsystem, "
+                   "use `vid_restart force', or set `cl_allow_vid_restart' variable to 1 "
+                   "to restore old behavior of this command.\n");
+        warned = true;
+        return;
+    }
     CL_RestartRefresh(true);
 }
 
@@ -3670,7 +3713,7 @@ static void exec_server_string(cmdbuf_t *buf, const char *text)
         return;        // no tokens
     }
 
-    Com_DPrintf("stufftext: %s\n", text);
+    Com_DPrintf("stufftext: %s\n", Com_MakePrintable(text));
 
     s = Cmd_Argv(0);
 
@@ -3742,6 +3785,11 @@ static void cl_updaterate_changed(cvar_t *self)
     CL_UpdateRateSetting();
 }
 #endif
+
+static void cl_flares_changed(cvar_t *self)
+{
+    CL_UpdateFlaresSetting();
+}
 
 static inline int fps_to_msec(int fps)
 {
@@ -3911,7 +3959,7 @@ static void CL_InitLocal(void)
 	cl_predict_crouch = Cvar_Get("cl_predict_crouch", "1", 0);
     cl_kickangles = Cvar_Get("cl_kickangles", "1", CVAR_CHEAT);
     cl_warn_on_fps_rounding = Cvar_Get("cl_warn_on_fps_rounding", "1", 0);
-    cl_maxfps = Cvar_Get("cl_maxfps", "60", 0);
+    cl_maxfps = Cvar_Get("cl_maxfps", "62", 0);
     cl_maxfps->changed = cl_maxfps_changed;
     cl_async = Cvar_Get("cl_async", "1", 0);
     cl_async->changed = cl_sync_changed;
@@ -3920,6 +3968,7 @@ static void CL_InitLocal(void)
     cl_autopause = Cvar_Get("cl_autopause", "1", 0);
     cl_rollhack = Cvar_Get("cl_rollhack", "1", 0);
     cl_noglow = Cvar_Get("cl_noglow", "0", 0);
+    cl_nobob = Cvar_Get("cl_nobob", "0", 0);
     cl_nolerp = Cvar_Get("cl_nolerp", "0", 0);
 
     cl_enhanced_footsteps= Cvar_Get("cl_enhanced_footsteps", "0", 0);
@@ -3974,6 +4023,9 @@ static void CL_InitLocal(void)
     cl_gibs = Cvar_Get("cl_gibs", "1", 0);
     cl_gibs->changed = cl_gibs_changed;
 
+    cl_flares = Cvar_Get("cl_flares", "1", 0);
+    cl_flares->changed = cl_flares_changed;
+
 #if USE_FPS
     cl_updaterate = Cvar_Get("cl_updaterate", "0", 0);
     cl_updaterate->changed = cl_updaterate_changed;
@@ -3990,6 +4042,7 @@ static void CL_InitLocal(void)
     cl_beginmapcmd = Cvar_Get("cl_beginmapcmd", "", 0);
 
     cl_ignore_stufftext = Cvar_Get("cl_ignore_stufftext", "0", 0);
+    cl_allow_vid_restart = Cvar_Get("cl_allow_vid_restart", "0", 0);
 
     cl_protocol = Cvar_Get("cl_protocol", "0", 0);
 
@@ -4008,7 +4061,7 @@ static void CL_InitLocal(void)
     info_spectator = Cvar_Get("spectator", "0", CVAR_USERINFO);
     info_name = Cvar_Get("name", "unnamed", CVAR_USERINFO | CVAR_ARCHIVE);
     info_skin = Cvar_Get("skin", "male/grunt", CVAR_USERINFO | CVAR_ARCHIVE);
-    info_rate = Cvar_Get("rate", "5000", CVAR_USERINFO | CVAR_ARCHIVE);
+    info_rate = Cvar_Get("rate", "15000", CVAR_USERINFO | CVAR_ARCHIVE);
     info_msg = Cvar_Get("msg", "1", CVAR_USERINFO | CVAR_ARCHIVE);
     info_hand = Cvar_Get("hand", "0", CVAR_USERINFO | CVAR_ARCHIVE);
     info_hand->changed = info_hand_changed;
@@ -4053,6 +4106,7 @@ static void CL_InitLocal(void)
     Cmd_AddMacro("cl_ammo", CL_Ammo_m);
     Cmd_AddMacro("cl_armor", CL_Armor_m);
     Cmd_AddMacro("cl_weaponmodel", CL_WeaponModel_m);
+    Cmd_AddMacro("cl_numentities", CL_NumEntities_m);
 }
 
 /*

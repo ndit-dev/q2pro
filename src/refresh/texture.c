@@ -95,7 +95,7 @@ static void gl_texturemode_changed(cvar_t *self)
 
     // change all the existing mipmap texture objects
     for (i = 0, image = r_images; i < r_numImages; i++, image++) {
-        if (image->type == IT_WALL || image->type == IT_SKIN) {
+        if (image->type == IT_WALL || image->type == IT_SKIN || image->type == IT_SKY) {
             GL_ForceTexture(0, image->texnum);
             GL_SetFilterAndRepeat(image->type, image->flags);
         }
@@ -443,8 +443,8 @@ static bool GL_MakePowerOfTwo(int *width, int *height)
     if (gl_config.caps & QGL_CAP_TEXTURE_NON_POWER_OF_TWO)
         return false;   // assume full NPOT texture support
 
-    *width = npot32(*width);
-    *height = npot32(*height);
+    *width = Q_npot32(*width);
+    *height = Q_npot32(*height);
     return false;
 }
 
@@ -625,6 +625,9 @@ static void GL_SetFilterAndRepeat(imagetype_t type, imageflags_t flags)
     if (type == IT_WALL || type == IT_SKIN) {
         qglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, gl_filter_min);
         qglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, gl_filter_max);
+    } else if (type == IT_SKY) {
+        qglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, gl_filter_max);
+        qglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, gl_filter_max);
     } else {
         bool    nearest;
 
@@ -747,8 +750,10 @@ void IMG_Unload(image_t *image)
     if (image->texnum && !(image->flags & IF_SCRAP)) {
         if (gls.texnums[0] == image->texnum)
             gls.texnums[0] = 0;
-        qglDeleteTextures(1, &image->texnum);
-        image->texnum = 0;
+        if (gls.texnums[2] == image->glow_texnum)
+            gls.texnums[2] = 0;
+        qglDeleteTextures(2, (GLuint[2]){ image->texnum, image->glow_texnum });
+        image->texnum = image->glow_texnum = 0;
     }
 }
 
@@ -1056,7 +1061,7 @@ void GL_InitImages(void)
     qglGetIntegerv(GL_MAX_TEXTURE_SIZE, &integer);
 
     if (integer & (integer - 1)) {
-        integer = npot32(integer) >> 1;
+        integer = Q_npot32(integer) >> 1;
     }
 
     max_texture_size = min(integer, MAX_TEXTURE_SIZE);

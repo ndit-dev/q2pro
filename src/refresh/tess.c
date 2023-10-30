@@ -20,7 +20,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 tesselator_t tess;
 
-#define FACE_HASH_BITS  5
+#define FACE_HASH_BITS  8
 #define FACE_HASH_SIZE  (1 << FACE_HASH_BITS)
 #define FACE_HASH_MASK  (FACE_HASH_SIZE - 1)
 
@@ -153,18 +153,116 @@ void GL_DrawParticles(void)
     } while (total);
 }
 
-/* all things serve the Beam */
-void GL_DrawBeams(void)
+static void GL_DrawBeamSegment(const vec3_t start, const vec3_t end, color_t color, float width)
 {
     vec3_t d1, d2, d3;
-    vec_t *start, *end;
-    color_t color;
     vec_t *dst_vert;
     uint32_t *dst_color;
     QGL_INDEX_TYPE *dst_indices;
     vec_t length;
-    int numverts;
-    int numindices;
+
+    VectorSubtract(end, start, d1);
+    VectorSubtract(glr.fd.vieworg, start, d2);
+    CrossProduct(d1, d2, d3);
+    VectorNormalize(d3);
+    VectorScale(d3, width, d3);
+
+    length = VectorLength(d1);
+    if (length < 0.1f)
+        return;
+
+    if (q_unlikely(tess.numverts + 4 > TESS_MAX_VERTICES ||
+                   tess.numindices + 6 > TESS_MAX_INDICES)) {
+        qglDrawElements(GL_TRIANGLES, tess.numindices,
+                        QGL_INDEX_ENUM, tess.indices);
+        tess.numverts = tess.numindices = 0;
+    }
+
+    dst_vert = tess.vertices + tess.numverts * 5;
+    VectorAdd(start, d3, dst_vert);
+    VectorSubtract(start, d3, dst_vert + 5);
+    VectorSubtract(end, d3, dst_vert + 10);
+    VectorAdd(end, d3, dst_vert + 15);
+
+    dst_vert[3] = 0; dst_vert[4] = 0;
+    dst_vert[8] = 1; dst_vert[9] = 0;
+    dst_vert[13] = 1; dst_vert[14] = length;
+    dst_vert[18] = 0; dst_vert[19] = length;
+
+    dst_color = (uint32_t *)tess.colors + tess.numverts;
+    dst_color[0] = color.u32;
+    dst_color[1] = color.u32;
+    dst_color[2] = color.u32;
+    dst_color[3] = color.u32;
+
+    dst_indices = tess.indices + tess.numindices;
+    dst_indices[0] = tess.numverts + 0;
+    dst_indices[1] = tess.numverts + 2;
+    dst_indices[2] = tess.numverts + 3;
+    dst_indices[3] = tess.numverts + 0;
+    dst_indices[4] = tess.numverts + 1;
+    dst_indices[5] = tess.numverts + 2;
+
+    tess.numverts += 4;
+    tess.numindices += 6;
+}
+
+#define MIN_LIGHTNING_SEGMENTS      3
+#define MAX_LIGHTNING_SEGMENTS      7
+#define MIN_SEGMENT_LENGTH          10
+
+static uint32_t GL_rand(void)
+{
+    uint32_t x = glr.rand_seed;
+
+    x ^= x << 13;
+    x ^= x >> 17;
+    x ^= x << 5;
+
+    return glr.rand_seed = x;
+}
+
+static float GL_frand(void)
+{
+    return (int32_t)GL_rand() * 0x1p-32f + 0.5f;
+}
+
+static void GL_DrawLightningBeam(const vec3_t start, const vec3_t end, color_t color, float width)
+{
+    vec3_t d1, segments[MAX_LIGHTNING_SEGMENTS - 1];
+    vec_t length;
+    int i, num_segments = MIN_LIGHTNING_SEGMENTS + GL_rand() % (MAX_LIGHTNING_SEGMENTS - MIN_LIGHTNING_SEGMENTS);
+
+    VectorSubtract(end, start, d1);
+    length = VectorNormalize(d1);
+
+    num_segments = min(num_segments, (int)(length / MIN_SEGMENT_LENGTH));
+    if (num_segments <= 1) {
+        GL_DrawBeamSegment(start, end, color, width);
+        return;
+    }
+
+    for (i = 0; i < num_segments - 1; i++) {
+        int dir = GL_rand() % q_countof(bytedirs);
+        float dist = GL_frand() * 20;
+        float frac = (float)(i + 1) / num_segments;
+        VectorMA(start, frac * length, d1, segments[i]);
+        VectorMA(segments[i], dist, bytedirs[dir], segments[i]);
+    }
+
+    for (i = 0; i < num_segments; i++) {
+        const float *seg_start = (i == 0) ? start : segments[i - 1];
+        const float *seg_end = (i == num_segments - 1) ? end : segments[i];
+
+        GL_DrawBeamSegment(seg_start, seg_end, color, width);
+    }
+}
+
+void GL_DrawBeams(void)
+{
+    vec_t *start, *end;
+    color_t color;
+    float width;
     entity_t *ent;
     int i;
 
@@ -181,7 +279,6 @@ void GL_DrawBeams(void)
     GL_TexCoordPointer(2, 5, tess.vertices + 3);
     GL_ColorBytePointer(4, 0, tess.colors);
 
-    numverts = numindices = 0;
     for (i = 0, ent = glr.fd.entities; i < glr.fd.num_entities; i++, ent++) {
         if (!(ent->flags & RF_BEAM)) {
             continue;
@@ -189,16 +286,6 @@ void GL_DrawBeams(void)
 
         start = ent->origin;
         end = ent->oldorigin;
-        VectorSubtract(end, start, d1);
-        VectorSubtract(glr.fd.vieworg, start, d2);
-        CrossProduct(d1, d2, d3);
-        VectorNormalize(d3);
-        length = ent->frame * 1.2f;
-        VectorScale(d3, length, d3);
-
-        length = VectorLength(d1);
-        if (length < 0.001f)
-            continue;
 
         if (ent->skinnum == -1) {
             color.u32 = ent->rgba.u32;
@@ -207,44 +294,18 @@ void GL_DrawBeams(void)
         }
         color.u8[3] *= ent->alpha;
 
-        if (numverts + 4 > TESS_MAX_VERTICES ||
-            numindices + 6 > TESS_MAX_INDICES) {
-            qglDrawElements(GL_TRIANGLES, numindices,
-                            QGL_INDEX_ENUM, tess.indices);
-            numverts = numindices = 0;
+        width = ent->frame * 1.2f;
+
+        if (ent->flags & RF_GLOW) {
+            GL_DrawLightningBeam(start, end, color, width);
+        } else {
+            GL_DrawBeamSegment(start, end, color, width);
         }
-
-        dst_vert = tess.vertices + numverts * 5;
-        VectorAdd(start, d3, dst_vert);
-        VectorSubtract(start, d3, dst_vert + 5);
-        VectorSubtract(end, d3, dst_vert + 10);
-        VectorAdd(end, d3, dst_vert + 15);
-
-        dst_vert[3] = 0; dst_vert[4] = 0;
-        dst_vert[8] = 1; dst_vert[9] = 0;
-        dst_vert[13] = 1; dst_vert[14] = length;
-        dst_vert[18] = 0; dst_vert[19] = length;
-
-        dst_color = (uint32_t *)tess.colors + numverts;
-        dst_color[0] = color.u32;
-        dst_color[1] = color.u32;
-        dst_color[2] = color.u32;
-        dst_color[3] = color.u32;
-
-        dst_indices = tess.indices + numindices;
-        dst_indices[0] = numverts + 0;
-        dst_indices[1] = numverts + 2;
-        dst_indices[2] = numverts + 3;
-        dst_indices[3] = numverts + 0;
-        dst_indices[4] = numverts + 1;
-        dst_indices[5] = numverts + 2;
-
-        numverts += 4;
-        numindices += 6;
     }
 
-    qglDrawElements(GL_TRIANGLES, numindices,
+    qglDrawElements(GL_TRIANGLES, tess.numindices,
                     QGL_INDEX_ENUM, tess.indices);
+    tess.numverts = tess.numindices = 0;
 }
 
 void GL_BindArrays(void)
@@ -288,6 +349,10 @@ void GL_Flush3D(void)
         }
     }
 
+    if (tess.texnum[2]) {
+        state |= GLS_GLOWMAP_ENABLE;
+    }
+
     if (!(state & GLS_TEXTURE_REPLACE)) {
         array |= GLA_COLOR;
     }
@@ -298,6 +363,9 @@ void GL_Flush3D(void)
     GL_BindTexture(0, tess.texnum[0]);
     if (q_likely(tess.texnum[1])) {
         GL_BindTexture(1, tess.texnum[1]);
+    }
+    if (tess.texnum[2]) {
+        GL_BindTexture(2, tess.texnum[2]);
     }
 
     if (gl_static.world.vertices) {
@@ -316,7 +384,7 @@ void GL_Flush3D(void)
 
     c.batchesDrawn++;
 
-    tess.texnum[0] = tess.texnum[1] = 0;
+    tess.texnum[0] = tess.texnum[1] = tess.texnum[2] = 0;
     tess.numindices = 0;
     tess.numverts = 0;
     tess.flags = 0;
@@ -340,7 +408,7 @@ static int GL_CopyVerts(mface_t *surf)
     return firstvert;
 }
 
-static int GL_TextureAnimation(mtexinfo_t *tex)
+static image_t *GL_TextureAnimation(mtexinfo_t *tex)
 {
     if (q_unlikely(tex->next)) {
         unsigned c = (unsigned)glr.ent->frame % tex->numframes;
@@ -351,26 +419,30 @@ static int GL_TextureAnimation(mtexinfo_t *tex)
         }
     }
 
-    return tex->image->texnum;
+    return tex->image;
 }
 
 void GL_DrawFace(mface_t *surf)
 {
     int numtris = surf->numsurfedges - 2;
     int numindices = numtris * 3;
-    GLuint texnum[2];
+    GLuint texnum[MAX_TMUS];
     QGL_INDEX_TYPE *dst_indices;
     int i, j;
 
     if (q_unlikely(gl_lightmap->integer && surf->texnum[1])) {
         texnum[0] = TEXNUM_WHITE;
+        texnum[2] = 0;
     } else {
-        texnum[0] = GL_TextureAnimation(surf->texinfo);
+        image_t *tex = GL_TextureAnimation(surf->texinfo);
+        texnum[0] = tex->texnum;
+        texnum[2] = surf->texnum[1] ? tex->glow_texnum : 0;
     }
     texnum[1] = surf->texnum[1];
 
     if (tess.texnum[0] != texnum[0] ||
         tess.texnum[1] != texnum[1] ||
+        tess.texnum[2] != texnum[2] ||
         tess.flags != surf->statebits ||
         tess.numindices + numindices > TESS_MAX_INDICES) {
         GL_Flush3D();
@@ -378,6 +450,7 @@ void GL_DrawFace(mface_t *surf)
 
     tess.texnum[0] = texnum[0];
     tess.texnum[1] = texnum[1];
+    tess.texnum[2] = texnum[2];
     tess.flags = surf->statebits;
 
     if (q_unlikely(gl_static.world.vertices)) {
@@ -451,16 +524,10 @@ void GL_DrawAlphaFaces(void)
 
 void GL_AddSolidFace(mface_t *face)
 {
-    unsigned hash;
-
-    hash = face->texnum[0] ^ face->texnum[1] ^ face->statebits;
-    hash ^= hash >> FACE_HASH_BITS;
-    hash &= FACE_HASH_MASK;
-
     // preserve front-to-back ordering
     face->next = NULL;
-    *faces_next[hash] = face;
-    faces_next[hash] = &face->next;
+    *faces_next[face->hash] = face;
+    faces_next[face->hash] = &face->next;
 }
 
 void GL_AddAlphaFace(mface_t *face, entity_t *ent)

@@ -11,6 +11,7 @@ env:
     --auto-features=enabled
     --fatal-meson-warnings
     -Danticheat-server=true
+    -Davcodec=disabled
     -Dclient-gtv=true
     -Dpacketdup-hack=true
     -Dtests=false
@@ -18,9 +19,13 @@ env:
     -Dwerror=false
     -Daqtion-build=true
     -Ddiscord-sdk=true
+    -Davcodec=disabled 
+# Disabled avcodec for now, because AQtion doesn't use it, but it's there if we do cinematics one day
 
   MESON_ARGS_WIN: >-
+    -Dlibpng:werror=false
     -Dsdl2=disabled
+    -Dvorbis:werror=false
     -Dwayland=disabled
     -Dwrap_mode=forcefallback
     -Dx11=disabled
@@ -101,8 +106,8 @@ jobs:
 
       - name: Build
         run: |
-          meson setup ${{ env.MESON_ARGS }} ${{ env.MESON_ARGS_WIN }} -Dvorbis:werror=false builddir
-          meson compile -vC builddir
+          meson setup ${{ env.MESON_ARGS }} ${{ env.MESON_ARGS_WIN }} builddir
+          meson compile -C builddir
 
       - name: Generate Win MSVC archives
         uses: actions/upload-artifact@v3

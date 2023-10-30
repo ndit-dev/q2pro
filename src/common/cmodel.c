@@ -68,11 +68,6 @@ static void load_entstring_override(cm_t *cm, const char *server)
         goto fail;
     }
 
-    if (ret >= MAX_MAP_ENTSTRING) {
-        ret = Q_ERR(EFBIG);
-        goto fail;
-    }
-
     Com_Printf("Loaded entity string from %s\n", buffer);
     cm->entitystring = data;
     cm->override_bits |= OVERRIDE_ENTS;
@@ -126,7 +121,7 @@ static void load_binary_override(cm_t *cm, char *server, size_t server_size)
 
     if (bits & OVERRIDE_ENTS) {
         len = SZ_ReadLong(&sz);
-        if (len < 1 || len >= MAX_MAP_ENTSTRING)
+        if (len <= 0)
             goto fail;
         if (!(buf = SZ_ReadData(&sz, len)))
             goto fail;
@@ -210,7 +205,7 @@ int CM_LoadMap(cm_t *cm, const char *name)
         cm->entitystring = cm->cache->entitystring;
 
     cm->floodnums = Z_TagMallocz(sizeof(cm->floodnums[0]) * cm->cache->numareas, TAG_CMODEL);
-    cm->portalopen = Z_TagMallocz(sizeof(cm->portalopen[0]) * (cm->cache->lastareaportal + 1), TAG_CMODEL);
+    cm->portalopen = Z_TagMallocz(sizeof(cm->portalopen[0]) * cm->cache->numportals, TAG_CMODEL);
     FloodAreaConnections(cm);
 
     return Q_ERR_SUCCESS;
@@ -947,14 +942,8 @@ void CM_SetAreaPortalState(cm_t *cm, int portalnum, bool open)
         return;
     }
 
-    if (portalnum < 0 || portalnum >= MAX_MAP_AREAPORTALS) {
-        Com_EPrintf("%s: portalnum %d is out of range\n", __func__, portalnum);
-        return;
-    }
-
-    // ignore areaportals not referenced by areas
-    if (portalnum > cm->cache->lastareaportal) {
-        Com_DPrintf("%s: portalnum %d is not in use\n", __func__, portalnum);
+    if (portalnum < 0 || portalnum >= cm->cache->numportals) {
+        Com_DPrintf("%s: portalnum %d is out of range\n", __func__, portalnum);
         return;
     }
 
@@ -1008,6 +997,7 @@ int CM_WriteAreaBits(cm_t *cm, byte *buffer, int area)
     }
 
     bytes = (cache->numareas + 7) >> 3;
+    Q_assert(bytes <= MAX_MAP_AREA_BYTES);
 
     if (map_noareas->integer || !area) {
         // for debugging, send everything
@@ -1034,7 +1024,7 @@ int CM_WritePortalBits(cm_t *cm, byte *buffer)
         return 0;
     }
 
-    numportals = min(cm->cache->lastareaportal + 1, MAX_MAP_PORTAL_BYTES << 3);
+    numportals = min(cm->cache->numportals, MAX_MAP_PORTAL_BYTES << 3);
 
     bytes = (numportals + 7) >> 3;
     memset(buffer, 0, bytes);
@@ -1055,11 +1045,11 @@ void CM_SetPortalStates(cm_t *cm, byte *buffer, int bytes)
         return;
     }
 
-    numportals = min(cm->cache->lastareaportal + 1, bytes << 3);
+    numportals = min(cm->cache->numportals, bytes << 3);
     for (i = 0; i < numportals; i++) {
         cm->portalopen[i] = Q_IsBitSet(buffer, i);
     }
-    for (; i <= cm->cache->lastareaportal; i++) {
+    for (; i < cm->cache->numportals; i++) {
         cm->portalopen[i] = true;
     }
 

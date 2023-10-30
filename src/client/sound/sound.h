@@ -18,6 +18,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 // sound.h -- private sound functions
 
+#pragma once
+
 #include "../client.h"
 #include "shared/list.h"
 
@@ -89,11 +91,9 @@ typedef struct {
     int         format;
     int         channels;
     int         rate;
-    int         block_align;
     int         width;
     int         loopstart;
     int         samples;
-    int         data_chunk_len;
     byte        *data;
 } wavinfo_t;
 
@@ -132,11 +132,6 @@ extern const sndapi_t   snd_openal;
 #endif
 
 //====================================================================
-
-// only begin attenuating sound volumes when outside the FULLVOLUME range
-#define SOUND_FULLVOLUME        80
-
-#define SOUND_LOOPATTENUATE     0.003f
 
 typedef enum {
     SS_NOT,
@@ -189,6 +184,8 @@ sfxcache_t *S_LoadSound(sfx_t *s);
 channel_t *S_PickChannel(int entnum, int entchannel);
 void S_IssuePlaysound(playsound_t *ps);
 void S_BuildSoundList(int *sounds);
+float S_GetEntityLoopVolume(const centity_state_t *ent);
+float S_GetEntityLoopDistMult(const centity_state_t *ent);
 
 #if USE_OGG
 bool OGG_Load(sizebuf_t *sz);

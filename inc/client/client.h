@@ -29,6 +29,13 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #define CHAR_WIDTH  8
 #define CHAR_HEIGHT 8
 
+// only begin attenuating sound volumes when outside the FULLVOLUME range
+#define SOUND_FULLVOLUME        80
+
+#define SOUND_LOOPATTENUATE     0.003f
+
+#define SOUND_LOOPATTENUATE_MULT    0.0006f
+
 #if USE_CLIENT
 
 #define MAX_LOCAL_SERVERS   16
@@ -86,6 +93,7 @@ bool CL_ForwardToServer(void);
 
 void Con_Init(void);
 void Con_SetColor(color_index_t color);
+void Con_SkipNotify(bool skip);
 void Con_Print(const char *text);
 void Con_Printf(const char *fmt, ...) q_printf(1, 2);
 void Con_Close(bool force);
@@ -104,19 +112,19 @@ void SCR_UpdateScreen(void);
 #define U32_MAGENTA MakeColor(255,   0, 255, 255)
 #define U32_WHITE   MakeColor(255, 255, 255, 255)
 
-#define UI_LEFT             0x00000001
-#define UI_RIGHT            0x00000002
+#define UI_LEFT             BIT(0)
+#define UI_RIGHT            BIT(1)
 #define UI_CENTER           (UI_LEFT | UI_RIGHT)
-#define UI_BOTTOM           0x00000004
-#define UI_TOP              0x00000008
+#define UI_BOTTOM           BIT(2)
+#define UI_TOP              BIT(3)
 #define UI_MIDDLE           (UI_BOTTOM | UI_TOP)
-#define UI_DROPSHADOW       0x00000010
-#define UI_ALTCOLOR         0x00000020
-#define UI_IGNORECOLOR      0x00000040
-#define UI_XORCOLOR         0x00000080
-#define UI_AUTOWRAP         0x00000100
-#define UI_MULTILINE        0x00000200
-#define UI_DRAWCURSOR       0x00000400
+#define UI_DROPSHADOW       BIT(4)
+#define UI_ALTCOLOR         BIT(5)
+#define UI_IGNORECOLOR      BIT(6)
+#define UI_XORCOLOR         BIT(7)
+#define UI_AUTOWRAP         BIT(8)
+#define UI_MULTILINE        BIT(9)
+#define UI_DRAWCURSOR       BIT(10)
 
 extern const uint32_t   colorTable[8];
 
@@ -137,6 +145,7 @@ float V_CalcFov(float fov_x, float width, float height);
 
 #define Con_Init()                      (void)0
 #define Con_SetColor(color)             (void)0
+#define Con_SkipNotify(skip)            (void)0
 #define Con_Print(text)                 (void)0
 
 #define SCR_BeginLoadingPlaque()        (void)0

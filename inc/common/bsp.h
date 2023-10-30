@@ -25,11 +25,21 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "format/bsp.h"
 
 // maximum size of a PVS row, in bytes
-#define VIS_MAX_BYTES   (MAX_MAP_LEAFS >> 3)
+#define VIS_MAX_BYTES   (MAX_MAP_CLUSTERS >> 3)
 
 // take advantage of 64-bit systems
 #define VIS_FAST_LONGS(bsp) \
     (((bsp)->visrowsize + sizeof(size_t) - 1) / sizeof(size_t))
+
+#if USE_CLIENT
+
+enum {
+    FOOTSTEP_ID_DEFAULT,
+    FOOTSTEP_ID_LADDER,
+    FOOTSTEP_RESERVED_COUNT
+};
+
+#endif
 
 typedef struct mtexinfo_s {  // used internally due to name len probs //ZOID
     csurface_t          c;
@@ -41,6 +51,10 @@ typedef struct mtexinfo_s {  // used internally due to name len probs //ZOID
     struct image_s      *image; // used for texturing
     int                 numframes;
     struct mtexinfo_s   *next; // used for animation
+#endif
+#if USE_CLIENT
+    char                material[16];
+    int                 step_id;
 #endif
 } mtexinfo_t;
 
@@ -60,13 +74,11 @@ typedef struct {
 
 #define SURF_TRANS_MASK (SURF_TRANS33 | SURF_TRANS66)
 #define SURF_COLOR_MASK (SURF_TRANS_MASK | SURF_WARP)
-#define SURF_NOLM_MASK  (SURF_COLOR_MASK | SURF_FLOWING | SURF_SKY)
+
+#define SURF_NOLM_MASK_REMASTER     (SURF_SKY | SURF_NODRAW)
+#define SURF_NOLM_MASK_DEFAULT      (SURF_COLOR_MASK | SURF_FLOWING | SURF_NOLM_MASK_REMASTER)
 
 #define DSURF_PLANEBACK     1
-
-// for lightmap block calculation
-#define S_MAX(surf) (((surf)->extents[0] >> 4) + 1)
-#define T_MAX(surf) (((surf)->extents[1] >> 4) + 1)
 
 typedef struct mface_s {
     msurfedge_t     *firstsurfedge;
@@ -77,13 +89,18 @@ typedef struct mface_s {
 
     byte            *lightmap;
     byte            styles[MAX_LIGHTMAPS];
-    int             numstyles;
+    byte            numstyles;
+
+    byte            hash;
 
     mtexinfo_t      *texinfo;
-    int             texturemins[2];
-    int             extents[2];
+    vec3_t          lm_axis[2];
+    vec2_t          lm_offset;
+    vec2_t          lm_scale;
+    int             lm_width;
+    int             lm_height;
 
-    int             texnum[2];
+    int             texnum[3]; // FIXME MAX_TMUS
     int             statebits;
     int             firstvert;
     int             light_s, light_t;
@@ -91,7 +108,7 @@ typedef struct mface_s {
 
     unsigned        drawframe;
     unsigned        dlightframe;
-    unsigned        dlightbits;
+    uint64_t        dlightbits;
 
     struct entity_s     *entity;
     struct mface_s      *next;
@@ -184,6 +201,41 @@ typedef struct mmodel_s {
 #endif
 } mmodel_t;
 
+#if USE_REF
+
+typedef struct {
+    int32_t point[3];
+    uint32_t children[8];
+} lightgrid_node_t;
+
+typedef struct {
+    byte style;
+    byte rgb[3];
+} lightgrid_sample_t;
+
+typedef struct {
+    uint32_t mins[3];
+    uint32_t size[3];
+    uint32_t numsamples;
+    uint32_t firstsample;
+} lightgrid_leaf_t;
+
+typedef struct {
+    vec3_t scale;
+    vec3_t mins;
+    uint32_t size[3];
+    uint32_t numstyles;
+    uint32_t numnodes;
+    uint32_t numleafs;
+    uint32_t numsamples;
+    uint32_t rootnode;
+    lightgrid_node_t *nodes;
+    lightgrid_leaf_t *leafs;
+    lightgrid_sample_t *samples;
+} lightgrid_t;
+
+#endif
+
 typedef struct bsp_s {
     list_t      entry;
     int         refcount;
@@ -226,7 +278,7 @@ typedef struct bsp_s {
     int             numareas;
     marea_t         *areas;
 
-    int             lastareaportal; // largest portal number used
+    int             numportals;     // largest portal number used plus one
     int             numareaportals; // size of the array below
     mareaportal_t   *areaportals;
 
@@ -248,7 +300,12 @@ typedef struct bsp_s {
 
     int             numsurfedges;
     msurfedge_t     *surfedges;
+
+    lightgrid_t     lightgrid;
+
+    bool            lm_decoupled;
 #endif
+    bool            extended;
 
     char            name[1];
 } bsp_t;
@@ -257,17 +314,23 @@ int BSP_Load(const char *name, bsp_t **bsp_p);
 void BSP_Free(bsp_t *bsp);
 const char *BSP_ErrorString(int err);
 
+#if USE_CLIENT
+int BSP_LoadMaterials(bsp_t *bsp);
+#endif
+
 #if USE_REF
 typedef struct {
     mface_t     *surf;
     cplane_t    plane;
-    int         s, t;
+    float       s, t;
     float       fraction;
 } lightpoint_t;
 
-void BSP_LightPoint(lightpoint_t *point, const vec3_t start, const vec3_t end, mnode_t *headnode);
+void BSP_LightPoint(lightpoint_t *point, const vec3_t start, const vec3_t end, mnode_t *headnode, int nolm_mask);
 void BSP_TransformedLightPoint(lightpoint_t *point, const vec3_t start, const vec3_t end,
-                               mnode_t *headnode, const vec3_t origin, const vec3_t angles);
+                               mnode_t *headnode, int nolm_mask, const vec3_t origin, const vec3_t angles);
+
+lightgrid_sample_t *BSP_LookupLightgrid(lightgrid_t *grid, int32_t point[3]);
 #endif
 
 byte *BSP_ClusterVis(bsp_t *bsp, byte *mask, int cluster, int vis);

@@ -21,9 +21,9 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "common/cvar.h"
 #include "common/error.h"
 
-#define MAX_DLIGHTS     32
-#define MAX_ENTITIES    1024
-#define MAX_PARTICLES   4096
+#define MAX_DLIGHTS     64
+#define MAX_ENTITIES    2048
+#define MAX_PARTICLES   8192
 #define MAX_LIGHTSTYLES 256
 
 #define POWERSUIT_SCALE     4.0f
@@ -47,7 +47,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #define SHELL_WHITE_COLOR   0xD7
 
 #define RF_SHELL_MASK       (RF_SHELL_RED | RF_SHELL_GREEN | RF_SHELL_BLUE | \
-                             RF_SHELL_DOUBLE | RF_SHELL_HALF_DAM)
+                             RF_SHELL_DOUBLE | RF_SHELL_HALF_DAM | RF_SHELL_LITE_GREEN)
 
 #define DLIGHT_CUTOFF       64
 
@@ -79,6 +79,8 @@ typedef struct entity_s {
 
     qhandle_t   skin;           // NULL for inline skin
     int         flags;
+
+    float       scale;
 } entity_t;
 
 typedef struct dlight_s {
@@ -131,8 +133,8 @@ typedef struct {
 } r_opengl_config_t;
 
 typedef enum {
-    QVF_FULLSCREEN      = (1 << 0),
-    QVF_GAMMARAMP       = (1 << 1),
+    QVF_FULLSCREEN      = BIT(0),
+    QVF_GAMMARAMP       = BIT(1),
 } vidFlags_t;
 
 typedef struct {
@@ -149,15 +151,15 @@ typedef struct {
 
 typedef enum {
     IF_NONE         = 0,
-    IF_PERMANENT    = (1 << 0),
-    IF_TRANSPARENT  = (1 << 1),
-    IF_PALETTED     = (1 << 2),
-    IF_UPSCALED     = (1 << 3),
-    IF_SCRAP        = (1 << 4),
-    IF_TURBULENT    = (1 << 5),
-    IF_REPEAT       = (1 << 6),
-    IF_NEAREST      = (1 << 7),
-    IF_OPAQUE       = (1 << 8),
+    IF_PERMANENT    = BIT(0),
+    IF_TRANSPARENT  = BIT(1),
+    IF_PALETTED     = BIT(2),
+    IF_UPSCALED     = BIT(3),
+    IF_SCRAP        = BIT(4),
+    IF_TURBULENT    = BIT(5),
+    IF_REPEAT       = BIT(6),
+    IF_NEAREST      = BIT(7),
+    IF_OPAQUE       = BIT(8),
 } imageflags_t;
 
 typedef enum {
@@ -194,13 +196,14 @@ void    R_BeginRegistration(const char *map);
 qhandle_t R_RegisterModel(const char *name);
 qhandle_t R_RegisterImage(const char *name, imagetype_t type,
                           imageflags_t flags);
-void    R_SetSky(const char *name, float rotate, const vec3_t axis);
+void    R_SetSky(const char *name, float rotate, bool autorotate, const vec3_t axis);
 void    R_EndRegistration(void);
 
 #define R_RegisterPic(name)     R_RegisterImage(name, IT_PIC, IF_PERMANENT)
-#define R_RegisterPic2(name)    R_RegisterImage(name, IT_PIC, IF_NONE)
+#define R_RegisterTempPic(name) R_RegisterImage(name, IT_PIC, IF_NONE)
 #define R_RegisterFont(name)    R_RegisterImage(name, IT_FONT, IF_PERMANENT)
 #define R_RegisterSkin(name)    R_RegisterImage(name, IT_SKIN, IF_NONE)
+#define R_RegisterSprite(name)  R_RegisterImage(name, IT_SPRITE, IF_NONE)
 
 void    R_RenderFrame(refdef_t *fd);
 void    R_LightPoint(const vec3_t origin, vec3_t light);

@@ -34,6 +34,7 @@ void SV_FlushRedirect(int redirected, char *outputbuf, size_t len)
     byte    buffer[MAX_PACKETLEN_DEFAULT];
 
     if (redirected == RD_PACKET) {
+        Q_assert(len <= sizeof(buffer) - 10);
         memcpy(buffer, "\xff\xff\xff\xffprint\n", 10);
         memcpy(buffer + 10, outputbuf, len);
         NET_SendPacket(NS_SERVER, buffer, len + 10, &net_from);
@@ -260,10 +261,6 @@ void SV_Multicast(const vec3_t origin, multicast_t to)
     int         leafnum q_unused = 0;
     int         flags = 0;
 
-    if (!sv.cm.cache) {
-        Com_Error(ERR_DROP, "%s: no map loaded", __func__);
-    }
-
     switch (to) {
     case MULTICAST_ALL_R:
         flags |= MSG_RELIABLE;
@@ -275,7 +272,7 @@ void SV_Multicast(const vec3_t origin, multicast_t to)
         // intentional fallthrough
     case MULTICAST_PHS:
         leaf1 = CM_PointLeaf(&sv.cm, origin);
-        leafnum = leaf1 - sv.cm.cache->leafs;
+        leafnum = CM_NumLeaf(&sv.cm, leaf1);
         BSP_ClusterVis(sv.cm.cache, mask, leaf1->cluster, DVIS_PHS);
         break;
     case MULTICAST_PVS_R:
@@ -283,7 +280,7 @@ void SV_Multicast(const vec3_t origin, multicast_t to)
         // intentional fallthrough
     case MULTICAST_PVS:
         leaf1 = CM_PointLeaf(&sv.cm, origin);
-        leafnum = leaf1 - sv.cm.cache->leafs;
+        leafnum = CM_NumLeaf(&sv.cm, leaf1);
         BSP_ClusterVis(sv.cm.cache, mask, leaf1->cluster, DVIS_PVS);
         break;
     default:
@@ -547,7 +544,10 @@ static void emit_snd(client_t *client, message_packet_t *msg)
 
     MSG_WriteByte(svc_sound);
     MSG_WriteByte(flags);
-    MSG_WriteByte(msg->index);
+    if (client->csr->extended && flags & SND_INDEX16)
+        MSG_WriteShort(msg->index);
+    else
+        MSG_WriteByte(msg->index);
 
     if (flags & SND_VOLUME)
         MSG_WriteByte(msg->volume);
@@ -728,6 +728,7 @@ static void write_datagram_old(client_t *client)
             maxsize -= msg->cursize;
         }
     }
+    Q_assert(maxsize <= client->netchan.maxpacketlen);
 
     // send over all the relevant entity_state_t
     // and the player_state_t

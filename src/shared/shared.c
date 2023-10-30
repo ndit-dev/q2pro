@@ -66,24 +66,12 @@ vec_t VectorNormalize(vec3_t v)
     }
 
     return length;
-
 }
 
 vec_t VectorNormalize2(const vec3_t v, vec3_t out)
 {
-    float    length, ilength;
-
-    length = VectorLength(v);
-
-    if (length) {
-        ilength = 1 / length;
-        out[0] = v[0] * ilength;
-        out[1] = v[1] * ilength;
-        out[2] = v[2] * ilength;
-    }
-
-    return length;
-
+    VectorCopy(v, out);
+    return VectorNormalize(out);
 }
 
 void ClearBounds(vec3_t mins, vec3_t maxs)
@@ -211,6 +199,26 @@ size_t COM_DefaultExtension(char *path, const char *ext, size_t size)
         return strlen(path);
     else
         return Q_strlcat(path, ext, size);
+}
+
+/*
+============
+COM_SplitPath
+
+Splits an input filename into file name and path components
+============
+*/
+void COM_SplitPath(const char *in, char *name, size_t name_size,
+                   char *path, size_t path_size, bool strip_ext)
+{
+    const char *p = COM_SkipPath(in);
+
+    if (strip_ext)
+        COM_StripExtension(name, p, name_size);
+    else
+        Q_strlcpy(name, p, name_size);
+
+    Q_strlcpy(path, in, min(path_size, p - in + 1));
 }
 
 /*
@@ -348,7 +356,7 @@ char *COM_StripQuotes(char *s)
     return s;
 }
 
-char *COM_Trim(char *s)
+char *COM_TrimSpace(char *s)
 {
     size_t len;
 
@@ -1421,3 +1429,60 @@ int Q_strnicmp (const char *s1, const char *s2, size_t size)
 #endif
 
 // end action
+/*
+=====================================================================
+
+  CONFIG STRING REMAPPING
+
+=====================================================================
+*/
+
+#if USE_PROTOCOL_EXTENSIONS
+
+const cs_remap_t cs_remap_old = {
+    .extended    = false,
+
+    .max_edicts  = MAX_EDICTS_OLD,
+    .max_models  = MAX_MODELS_OLD,
+    .max_sounds  = MAX_SOUNDS_OLD,
+    .max_images  = MAX_IMAGES_OLD,
+
+    .airaccel    = CS_AIRACCEL_OLD,
+    .maxclients  = CS_MAXCLIENTS_OLD,
+    .mapchecksum = CS_MAPCHECKSUM_OLD,
+
+    .models      = CS_MODELS_OLD,
+    .sounds      = CS_SOUNDS_OLD,
+    .images      = CS_IMAGES_OLD,
+    .lights      = CS_LIGHTS_OLD,
+    .items       = CS_ITEMS_OLD,
+    .playerskins = CS_PLAYERSKINS_OLD,
+    .general     = CS_GENERAL_OLD,
+
+    .end         = MAX_CONFIGSTRINGS_OLD
+};
+
+const cs_remap_t cs_remap_new = {
+    .extended    = true,
+
+    .max_edicts  = MAX_EDICTS,
+    .max_models  = MAX_MODELS,
+    .max_sounds  = MAX_SOUNDS,
+    .max_images  = MAX_IMAGES,
+
+    .airaccel    = CS_AIRACCEL,
+    .maxclients  = CS_MAXCLIENTS,
+    .mapchecksum = CS_MAPCHECKSUM,
+
+    .models      = CS_MODELS,
+    .sounds      = CS_SOUNDS,
+    .images      = CS_IMAGES,
+    .lights      = CS_LIGHTS,
+    .items       = CS_ITEMS,
+    .playerskins = CS_PLAYERSKINS,
+    .general     = CS_GENERAL,
+
+    .end         = MAX_CONFIGSTRINGS
+};
+
+#endif

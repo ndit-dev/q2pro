@@ -20,32 +20,30 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 void GL_SampleLightPoint(vec3_t color)
 {
-    mface_t         *surf;
+    mface_t         *surf = glr.lightpoint.surf;
     int             s, t, i;
     byte            *lightmap;
     byte            *b1, *b2, *b3, *b4;
-    int             fracu, fracv;
-    int             w1, w2, w3, w4;
-    byte            temp[3];
+    float           fracu, fracv;
+    float           w1, w2, w3, w4;
+    vec3_t          temp;
     int             smax, tmax, size;
     lightstyle_t    *style;
 
-    fracu = glr.lightpoint.s & 15;
-    fracv = glr.lightpoint.t & 15;
+    s = glr.lightpoint.s;
+    t = glr.lightpoint.t;
+
+    fracu = glr.lightpoint.s - s;
+    fracv = glr.lightpoint.t - t;
 
     // compute weights of lightmap blocks
-    w1 = (16 - fracu) * (16 - fracv);
-    w2 = fracu * (16 - fracv);
+    w1 = (1.0f - fracu) * (1.0f - fracv);
+    w2 = fracu * (1.0f - fracv);
     w3 = fracu * fracv;
-    w4 = (16 - fracu) * fracv;
+    w4 = (1.0f - fracu) * fracv;
 
-    s = glr.lightpoint.s >> 4;
-    t = glr.lightpoint.t >> 4;
-
-    surf = glr.lightpoint.surf;
-
-    smax = S_MAX(surf);
-    tmax = T_MAX(surf);
+    smax = surf->lm_width;
+    tmax = surf->lm_height;
     size = smax * tmax * 3;
 
     VectorClear(color);
@@ -58,11 +56,11 @@ void GL_SampleLightPoint(vec3_t color)
         b3 = &lightmap[3 * ((t + 1) * smax + (s + 1))];
         b4 = &lightmap[3 * ((t + 1) * smax + (s + 0))];
 
-        temp[0] = (w1 * b1[0] + w2 * b2[0] + w3 * b3[0] + w4 * b4[0]) >> 8;
-        temp[1] = (w1 * b1[1] + w2 * b2[1] + w3 * b3[1] + w4 * b4[1]) >> 8;
-        temp[2] = (w1 * b1[2] + w2 * b2[2] + w3 * b3[2] + w4 * b4[2]) >> 8;
+        temp[0] = w1 * b1[0] + w2 * b2[0] + w3 * b3[0] + w4 * b4[0];
+        temp[1] = w1 * b1[1] + w2 * b2[1] + w3 * b3[1] + w4 * b4[1];
+        temp[2] = w1 * b1[2] + w2 * b2[2] + w3 * b3[2] + w4 * b4[2];
 
-        style = LIGHT_STYLE(surf, i);
+        style = LIGHT_STYLE(surf->styles[i]);
 
         color[0] += temp[0] * style->white;
         color[1] += temp[1] * style->white;
@@ -70,6 +68,89 @@ void GL_SampleLightPoint(vec3_t color)
 
         lightmap += size;
     }
+}
+
+static bool GL_LightGridPoint(lightgrid_t *grid, const vec3_t start, vec3_t color)
+{
+    vec3_t point, avg;
+    int point_i[3];
+    vec3_t samples[8];
+    int i, j, mask, numsamples;
+
+    if (!grid->numleafs || !gl_lightgrid->integer)
+        return false;
+
+    point[0] = (start[0] - grid->mins[0]) * grid->scale[0];
+    point[1] = (start[1] - grid->mins[1]) * grid->scale[1];
+    point[2] = (start[2] - grid->mins[2]) * grid->scale[2];
+
+    VectorCopy(point, point_i);
+    VectorClear(avg);
+
+    for (i = mask = numsamples = 0; i < 8; i++) {
+        int32_t tmp[3];
+
+        tmp[0] = point_i[0] + ((i >> 0) & 1);
+        tmp[1] = point_i[1] + ((i >> 1) & 1);
+        tmp[2] = point_i[2] + ((i >> 2) & 1);
+
+        VectorClear(samples[i]);
+
+        lightgrid_sample_t *s = BSP_LookupLightgrid(grid, tmp);
+        if (!s)
+            continue;
+
+        for (j = 0; j < grid->numstyles && s->style != 255; j++, s++) {
+            lightstyle_t *style = LIGHT_STYLE(s->style);
+            VectorMA(samples[i], style->white, s->rgb, samples[i]);
+        }
+
+        // count non-occluded samples
+        if (j) {
+            mask |= BIT(i);
+            VectorAdd(avg, samples[i], avg);
+            numsamples++;
+        }
+    }
+
+    if (!mask)
+        return false;
+
+    // replace occluded samples with average
+    if (mask != 255) {
+        VectorScale(avg, 1.0f / numsamples, avg);
+        for (i = 0; i < 8; i++)
+            if (!(mask & BIT(i)))
+                VectorCopy(avg, samples[i]);
+    }
+
+    // trilinear interpolation
+    float fx, fy, fz;
+    float bx, by, bz;
+    vec3_t lerp_x[4];
+    vec3_t lerp_y[2];
+
+    fx = point[0] - point_i[0];
+    fy = point[1] - point_i[1];
+    fz = point[2] - point_i[2];
+
+    bx = 1.0f - fx;
+    by = 1.0f - fy;
+    bz = 1.0f - fz;
+
+    LerpVector2(samples[0], samples[1], bx, fx, lerp_x[0]);
+    LerpVector2(samples[2], samples[3], bx, fx, lerp_x[1]);
+    LerpVector2(samples[4], samples[5], bx, fx, lerp_x[2]);
+    LerpVector2(samples[6], samples[7], bx, fx, lerp_x[3]);
+
+    LerpVector2(lerp_x[0], lerp_x[1], by, fy, lerp_y[0]);
+    LerpVector2(lerp_x[2], lerp_x[3], by, fy, lerp_y[1]);
+
+    LerpVector2(lerp_y[0], lerp_y[1], bz, fz, color);
+
+    GL_AdjustColor(color);
+
+    return true;
 }
 
 static bool _GL_LightPoint(const vec3_t start, vec3_t color)
@@ -91,13 +172,13 @@ static bool _GL_LightPoint(const vec3_t start, vec3_t color)
     end[2] = start[2] - 8192;
 
     // get base lightpoint from world
-    BSP_LightPoint(&glr.lightpoint, start, end, bsp->nodes);
+    BSP_LightPoint(&glr.lightpoint, start, end, bsp->nodes, gl_static.nolm_mask);
 
     // trace to other BSP models
     for (i = 0; i < glr.fd.num_entities; i++) {
         ent = &glr.fd.entities[i];
         index = ent->model;
-        if (!(index & 0x80000000))
+        if (!(index & BIT(31)))
             break;  // BSP models are at the start of entity array
 
         index = ~index;
@@ -126,11 +207,14 @@ static bool _GL_LightPoint(const vec3_t start, vec3_t color)
         }
 
         BSP_TransformedLightPoint(&pt, start, end, model->headnode,
-                                  ent->origin, angles);
+                                  gl_static.nolm_mask, ent->origin, angles);
 
         if (pt.fraction < glr.lightpoint.fraction)
             glr.lightpoint = pt;
     }
+
+    if (GL_LightGridPoint(&bsp->lightgrid, start, color))
+        return true;
 
     if (!glr.lightpoint.surf)
         return false;
@@ -142,7 +226,7 @@ static bool _GL_LightPoint(const vec3_t start, vec3_t color)
     return true;
 }
 
-static void GL_MarkLights_r(mnode_t *node, dlight_t *light, unsigned lightbit)
+static void GL_MarkLights_r(mnode_t *node, dlight_t *light, uint64_t lightbit)
 {
     vec_t dot;
     int count;
@@ -162,7 +246,7 @@ static void GL_MarkLights_r(mnode_t *node, dlight_t *light, unsigned lightbit)
         face = node->firstface;
         count = node->numfaces;
         while (count--) {
-            if (!(face->drawflags & SURF_NOLM_MASK)) {
+            if (!(face->drawflags & gl_static.nolm_mask)) {
                 if (face->dlightframe != glr.dlightframe) {
                     face->dlightframe = glr.dlightframe;
                     face->dlightbits = 0;
@@ -188,7 +272,7 @@ static void GL_MarkLights(void)
 
     for (i = 0, light = glr.fd.dlights; i < glr.fd.num_dlights; i++, light++) {
         VectorCopy(light->origin, light->transformed);
-        GL_MarkLights_r(gl_static.world.cache->nodes, light, 1U << i);
+        GL_MarkLights_r(gl_static.world.cache->nodes, light, BIT_ULL(i));
     }
 }
 
@@ -205,7 +289,7 @@ static void GL_TransformLights(mmodel_t *model)
         light->transformed[0] = DotProduct(temp, glr.entaxis[0]);
         light->transformed[1] = DotProduct(temp, glr.entaxis[1]);
         light->transformed[2] = DotProduct(temp, glr.entaxis[2]);
-        GL_MarkLights_r(model->headnode, light, 1U << i);
+        GL_MarkLights_r(model->headnode, light, BIT_ULL(i));
     }
 }
 
@@ -407,7 +491,7 @@ void GL_DrawBspModel(mmodel_t *model)
         }
 
         // sky faces don't have their polygon built
-        if (face->drawflags & SURF_SKY) {
+        if (face->drawflags & (SURF_SKY | SURF_NODRAW)) {
             continue;
         }
 
@@ -432,7 +516,7 @@ void GL_DrawBspModel(mmodel_t *model)
 }
 
 #define NODE_CLIPPED    0
-#define NODE_UNCLIPPED  15
+#define NODE_UNCLIPPED  (BIT(4) - 1)
 
 static inline bool GL_ClipNode(mnode_t *node, int *clipflags)
 {
@@ -491,6 +575,10 @@ static inline void GL_DrawNode(mnode_t *node)
 
         if (face->drawflags & SURF_SKY) {
             R_AddSkySurface(face);
+            continue;
+        }
+
+        if (face->drawflags & SURF_NODRAW) {
             continue;
         }
 

@@ -323,11 +323,12 @@ static mvd_t *create_channel(gtv_t *gtv)
     mvd->gtv = gtv;
     mvd->id = gtv->id;
     Q_strlcpy(mvd->name, gtv->name, sizeof(mvd->name));
-    mvd->pool.edicts = mvd->edicts;
-    mvd->pool.edict_size = sizeof(edict_t);
-    mvd->pool.max_edicts = MAX_EDICTS;
+    mvd->ge.edicts = mvd->edicts;
+    mvd->ge.edict_size = sizeof(edict_t);
+    mvd->ge.max_edicts = MAX_EDICTS;
     mvd->pm_type = PM_SPECTATOR;
     mvd->min_packets = mvd_wait_delay->integer;
+    mvd->csr = &cs_remap_old;
     List_Init(&mvd->clients);
     List_Init(&mvd->entry);
 
@@ -556,7 +557,7 @@ static void demo_emit_snapshot(mvd_t *mvd)
     int64_t pos;
     char *from, *to;
     size_t len;
-    int i;
+    int i, bits;
 
     if (mvd_snaps->integer <= 0)
         return;
@@ -583,7 +584,7 @@ static void demo_emit_snapshot(mvd_t *mvd)
     emit_base_frame(mvd);
 
     // write configstrings
-    for (i = 0; i < MAX_CONFIGSTRINGS; i++) {
+    for (i = 0; i < mvd->csr->end; i++) {
         from = mvd->baseconfigstrings[i];
         to = mvd->configstrings[i];
 
@@ -597,7 +598,39 @@ static void demo_emit_snapshot(mvd_t *mvd)
         MSG_WriteByte(0);
     }
 
-    // TODO: write private layouts/configstrings
+    // write private configstrings
+    for (i = 0; i < mvd->maxclients; i++) {
+        mvd_player_t *player = &mvd->players[i];
+        mvd_cs_t *cs;
+
+        if (!player->configstrings)
+            continue;
+
+        len = 0;
+        for (cs = player->configstrings; cs; cs = cs->next)
+            len += 4 + strlen(cs->string);
+
+        bits = (len >> 8) & 7;
+        MSG_WriteByte(mvd_unicast | (bits << SVCMD_BITS));
+        MSG_WriteByte(len & 255);
+        MSG_WriteByte(i);
+        for (cs = player->configstrings; cs; cs = cs->next) {
+            MSG_WriteByte(svc_configstring);
+            MSG_WriteShort(cs->index);
+            MSG_WriteString(cs->string);
+        }
+    }
+
+    // write layout
+    if (mvd->clientNum != -1) {
+        len = 2 + strlen(mvd->layout);
+        bits = (len >> 8) & 7;
+        MSG_WriteByte(mvd_unicast | (bits << SVCMD_BITS));
+        MSG_WriteByte(len & 255);
+        MSG_WriteByte(mvd->clientNum);
+        MSG_WriteByte(svc_layout);
+        MSG_WriteString(mvd->layout);
+    }
 
     snap = MVD_Malloc(sizeof(*snap) + msg_write.cursize - 1);
     snap->framenum = mvd->framenum;
@@ -1647,10 +1680,12 @@ OPERATOR COMMANDS
 
 void MVD_Spawn(void)
 {
-    Cvar_SetInteger(sv_running, ss_broadcast, FROM_CODE);
+    SV_SetState(ss_broadcast);
+
     Cvar_Set("sv_paused", "0");
     Cvar_Set("timedemo", "0");
     SV_InfoSet("port", net_port->string);
+    SV_InfoSet("protocol", "34");
 
 #if USE_SYSCON
     SV_SetConsoleTitle();
@@ -1668,8 +1703,6 @@ void MVD_Spawn(void)
 
     // set externally visible server name
     Q_strlcpy(sv.name, mvd_waitingRoom.mapname, sizeof(sv.name));
-
-    sv.state = ss_broadcast;
 
     // start as inactive
     mvd_last_activity = INT_MIN;
@@ -1789,7 +1822,7 @@ void MVD_StreamedStop_f(void)
 
 static inline int player_flags(mvd_t *mvd, mvd_player_t *player)
 {
-    int flags = 0;
+    int flags = mvd->psFlags;
 
     if (!player->inuse)
         flags |= MSG_PS_REMOVE;
@@ -1799,7 +1832,7 @@ static inline int player_flags(mvd_t *mvd, mvd_player_t *player)
 
 static inline int entity_flags(mvd_t *mvd, edict_t *ent)
 {
-    int flags = MSG_ES_UMASK;
+    int flags = mvd->esFlags;
 
     if (!ent->inuse) {
         flags |= MSG_ES_REMOVE;
@@ -1834,12 +1867,12 @@ static void emit_base_frame(mvd_t *mvd)
     MSG_WriteByte(CLIENTNUM_NONE);
 
     // send base entity states
-    for (i = 1; i < MAX_EDICTS; i++) {
+    for (i = 1; i < mvd->csr->max_edicts; i++) {
         ent = &mvd->edicts[i];
         if (!(ent->svflags & SVF_MONSTER))
             continue;   // entity never seen
         ent->s.number = i;
-        MSG_PackEntity(&es, &ent->s, false);
+        MSG_PackEntity(&es, &ent->s, &ent->x);
         MSG_WriteDeltaEntity(NULL, &es, entity_flags(mvd, ent));
     }
     MSG_WriteShort(0);
@@ -1857,13 +1890,13 @@ static void emit_gamestate(mvd_t *mvd)
     // send the serverdata
     MSG_WriteByte(mvd_serverdata | extra);
     MSG_WriteLong(PROTOCOL_VERSION_MVD);
-    MSG_WriteShort(PROTOCOL_VERSION_MVD_CURRENT);
+    MSG_WriteLong(mvd->version);
     MSG_WriteLong(mvd->servercount);
     MSG_WriteString(mvd->gamedir);
     MSG_WriteShort(mvd->clientNum);
 
     // send configstrings
-    for (i = 0; i < MAX_CONFIGSTRINGS; i++) {
+    for (i = 0; i < mvd->csr->end; i++) {
         s = mvd->configstrings[i];
         if (!*s)
             continue;
@@ -1873,8 +1906,7 @@ static void emit_gamestate(mvd_t *mvd)
         MSG_WriteData(s, len);
         MSG_WriteByte(0);
     }
-
-    MSG_WriteShort(MAX_CONFIGSTRINGS);
+    MSG_WriteShort(i);
 
     // send baseline frame
     emit_base_frame(mvd);
@@ -2223,7 +2255,7 @@ static void MVD_Seek_f(void)
     if (strchr(to, '%')) {
         char *suf;
         float percent = strtof(to, &suf);
-        if (strcmp(suf, "%") || !isfinite(percent)) {
+        if (suf == to || strcmp(suf, "%") || !isfinite(percent)) {
             Com_Printf("[%s] Invalid percentage.\n", mvd->name);
             return;
         }
@@ -2292,7 +2324,7 @@ static void MVD_Seek_f(void)
             MVD_ClearState(mvd, false);
 
             // reset configstrings
-            for (i = 0; i < MAX_CONFIGSTRINGS; i++) {
+            for (i = 0; i < mvd->csr->end; i++) {
                 from = mvd->baseconfigstrings[i];
                 to = mvd->configstrings[i];
 
@@ -2356,10 +2388,16 @@ static void MVD_Seek_f(void)
 
     // write private configstrings
     FOR_EACH_MVDCL(client, mvd) {
+        if (client->cl->state < cs_spawned)
+            continue;
+
         if (client->target)
             MVD_WriteStringList(client, client->target->configstrings);
         else if (mvd->dummy)
             MVD_WriteStringList(client, mvd->dummy->configstrings);
+
+        if (client->layout_type == LAYOUT_SCORES)
+            client->layout_time = 0;
     }
 
     // ouch
@@ -2371,7 +2409,7 @@ static void MVD_Seek_f(void)
     ent->inuse = true;
 
     // relink all seen entities, reset old origins and events
-    for (i = 1; i < MAX_EDICTS; i++) {
+    for (i = 1; i < mvd->csr->max_edicts; i++) {
         ent = &mvd->edicts[i];
 
         if (ent->svflags & SVF_MONSTER)
@@ -2471,7 +2509,7 @@ static const cmd_option_t o_mvdplay[] = {
 
 void MVD_File_g(genctx_t *ctx)
 {
-    FS_File_g("demos", "*.mvd2;*.mvd2.gz", FS_SEARCH_SAVEPATH | FS_SEARCH_BYFILTER, ctx);
+    FS_File_g("demos", ".mvd2;.mvd2.gz", FS_SEARCH_RECURSIVE, ctx);
 }
 
 static void MVD_Play_c(genctx_t *ctx, int argnum)

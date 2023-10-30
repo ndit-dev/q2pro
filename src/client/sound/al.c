@@ -107,6 +107,11 @@ static bool AL_Init(void)
     if (s_source_spatialize)
         qalSourcei(s_stream, AL_SOURCE_SPATIALIZE_SOFT, AL_FALSE);
 
+    if (qalIsExtensionPresent("AL_SOFT_direct_channels_remix"))
+        qalSourcei(s_stream, AL_DIRECT_CHANNELS_SOFT, AL_REMIX_UNMATCHED_SOFT);
+    else if (qalIsExtensionPresent("AL_SOFT_direct_channels"))
+        qalSourcei(s_stream, AL_DIRECT_CHANNELS_SOFT, AL_TRUE);
+
     // init underwater filter
     if (qalGenFilters && qalGetEnumValue("AL_FILTER_LOWPASS")) {
         qalGenFilters(1, &s_underwater_filter);
@@ -157,7 +162,7 @@ static sfxcache_t *AL_UploadSfx(sfx_t *s)
 {
     ALsizei size = s_info.samples * s_info.width * s_info.channels;
     ALenum format = AL_FORMAT_MONO8 + (s_info.channels - 1) * 2 + (s_info.width - 1);
-    ALuint buffer;
+    ALuint buffer = 0;
 
     qalGetError();
     qalGenBuffers(1, &buffer);
@@ -321,7 +326,7 @@ static void AL_AddLoopSounds(void)
     sfx_t       *sfx;
     sfxcache_t  *sc;
     int         num;
-    entity_state_t  *ent;
+    centity_state_t *ent;
 
     if (cls.state != ca_active || sv_paused->integer || !s_ambient->integer)
         return;
@@ -366,8 +371,8 @@ static void AL_AddLoopSounds(void)
         ch->autoframe = s_framecount;
         ch->sfx = sfx;
         ch->entnum = ent->number;
-        ch->master_vol = 1.0f;
-        ch->dist_mult = SOUND_LOOPATTENUATE;
+        ch->master_vol = S_GetEntityLoopVolume(ent);
+        ch->dist_mult = S_GetEntityLoopDistMult(ent);
         ch->end = s_paintedtime + sc->length;
 
         AL_PlayChannel(ch);
@@ -378,7 +383,7 @@ static void AL_StreamUpdate(void)
 {
     ALint num_buffers = 0;
     qalGetSourcei(s_stream, AL_BUFFERS_PROCESSED, &num_buffers);
-    while (num_buffers--) {
+    while (num_buffers-- > 0) {
         ALuint buffer = 0;
         qalSourceUnqueueBuffers(s_stream, 1, &buffer);
         qalDeleteBuffers(1, &buffer);
@@ -393,12 +398,17 @@ static void AL_StreamStop(void)
     Q_assert(!s_stream_buffers);
 }
 
+static bool AL_NeedRawSamples(void)
+{
+    return s_stream_buffers < 48;
+}
+
 static bool AL_RawSamples(int samples, int rate, int width, int channels, const byte *data, float volume)
 {
     ALenum format = AL_FORMAT_MONO8 + (channels - 1) * 2 + (width - 1);
-    ALuint buffer;
+    ALuint buffer = 0;
 
-    if (s_stream_buffers < 16) {
+    if (AL_NeedRawSamples()) {
         qalGetError();
         qalGenBuffers(1, &buffer);
         if (qalGetError())
@@ -425,11 +435,6 @@ static bool AL_RawSamples(int samples, int rate, int width, int channels, const 
     if (state != AL_PLAYING)
         qalSourcePlay(s_stream);
     return true;
-}
-
-static bool AL_NeedRawSamples(void)
-{
-    return s_stream_buffers < 16;
 }
 
 static void AL_UpdateUnderWater(void)

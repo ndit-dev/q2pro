@@ -837,6 +837,12 @@ static bool parse_enhanced_params(conn_params_t *p)
 	}
 
 
+    if (!CLIENT_COMPATIBLE(&svs.csr, p)) {
+        return reject("This is a protocol limit removing enhanced server.\n"
+                      "Your client version is not compatible. Make sure you are "
+                      "running latest Q2PRO client version.\n");
+    }
+
     return true;
 }
 
@@ -1028,6 +1034,12 @@ static void init_pmove_and_es_flags(client_t *newcl)
         if (newcl->version >= PROTOCOL_VERSION_Q2PRO_BEAM_ORIGIN) {
             newcl->esFlags |= MSG_ES_BEAMORIGIN;
         }
+        if (newcl->version >= PROTOCOL_VERSION_Q2PRO_SHORT_ANGLES) {
+            newcl->esFlags |= MSG_ES_SHORTANGLES;
+        }
+        if (svs.csr.extended) {
+            newcl->esFlags |= MSG_ES_EXTENSIONS;
+        }
         force = 1;
     }
 	else if (newcl->protocol == PROTOCOL_VERSION_AQTION) {
@@ -1133,8 +1145,9 @@ static void SVC_DirectConnect(void)
     newcl->edict = EDICT_NUM(number + 1);
     newcl->gamedir = fs_game->string;
     newcl->mapname = sv.name;
-    newcl->configstrings = (char *)sv.configstrings;
-    newcl->pool = (edict_pool_t *)&ge->edicts;
+    newcl->configstrings = sv.configstrings;
+    newcl->csr = &svs.csr;
+    newcl->ge = ge;
     newcl->cm = &sv.cm;
     newcl->spawncount = sv.spawncount;
     newcl->maxclients = sv_maxclients->integer;
@@ -1746,6 +1759,11 @@ static void SV_PrepWorldFrame(void)
     }
 #endif
 
+    if (gex && gex->PrepFrame) {
+        gex->PrepFrame();
+        return;
+    }
+
     if (!SV_FRAMESYNC)
         return;
 
@@ -2124,7 +2142,7 @@ static void init_rate_limits(void)
 
 static void sv_rate_changed(cvar_t *self)
 {
-    Cvar_ClampInteger(sv_min_rate, 100, Cvar_ClampInteger(sv_max_rate, 1000, INT_MAX));
+    Cvar_ClampInteger(sv_min_rate, 1500, Cvar_ClampInteger(sv_max_rate, 1500, INT_MAX));
 }
 
 void sv_sec_timeout_changed(cvar_t *self)
@@ -2242,14 +2260,14 @@ void SV_Init(void)
     sv_pad_packets = Cvar_Get("sv_pad_packets", "0", 0);
 #endif
     sv_lan_force_rate = Cvar_Get("sv_lan_force_rate", "0", CVAR_LATCH);
-    sv_min_rate = Cvar_Get("sv_min_rate", "100", CVAR_LATCH);
+    sv_min_rate = Cvar_Get("sv_min_rate", "1500", CVAR_LATCH);
     sv_max_rate = Cvar_Get("sv_max_rate", "15000", CVAR_LATCH);
     sv_max_rate->changed = sv_min_rate->changed = sv_rate_changed;
     sv_max_rate->changed(sv_max_rate);
     sv_calcpings_method = Cvar_Get("sv_calcpings_method", "2", 0);
     sv_changemapcmd = Cvar_Get("sv_changemapcmd", "", 0);
     sv_max_download_size = Cvar_Get("sv_max_download_size", "8388608", 0);
-    sv_max_packet_entities = Cvar_Get("sv_max_packet_entities", STRINGIFY(MAX_PACKET_ENTITIES), 0);
+    sv_max_packet_entities = Cvar_Get("sv_max_packet_entities", "0", 0);
 
     sv_strafejump_hack = Cvar_Get("sv_strafejump_hack", "1", CVAR_LATCH);
     sv_waterjump_hack = Cvar_Get("sv_waterjump_hack", "1", CVAR_LATCH);

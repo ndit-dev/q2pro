@@ -154,5 +154,11 @@ int SZ_ReadShort(sizebuf_t *sb)
 int SZ_ReadLong(sizebuf_t *sb)
 {
     byte *buf = SZ_ReadData(sb, 4);
-    return buf ? RL32(buf) : -1;
+    return buf ? (int32_t)RL32(buf) : -1;
+}
+
+float SZ_ReadFloat(sizebuf_t *sb)
+{
+    byte *buf = SZ_ReadData(sb, 4);
+    return buf ? LongToFloat(RL32(buf)) : -1.0f;
 }
