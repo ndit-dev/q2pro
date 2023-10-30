@@ -25,6 +25,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "common/tests.h"
 #include "refresh/refresh.h"
 #include "system/system.h"
+#include "client/client.h"
 #include "client/sound/sound.h"
 
 // test error shutdown procedures
@@ -37,6 +38,26 @@ static void Com_ErrorDrop_f(void)
 {
     Com_Error(ERR_DROP, "%s", Cmd_Argv(1));
 }
+
+#if USE_CLIENT
+static void Com_Activate_f(void)
+{
+    active_t act;
+
+    if (Cmd_Argc() < 2) {
+        Com_Printf("Usage: %s <mode>\n", Cmd_Argv(0));
+        return;
+    }
+
+    act = atoi(Cmd_Argv(1));
+    if (act < ACT_MINIMIZED || act > ACT_ACTIVATED) {
+        Com_Printf("Bad mode\n");
+        return;
+    }
+
+    CL_Activate(act);
+}
+#endif
 
 static void Com_Freeze_f(void)
 {
@@ -145,7 +166,7 @@ static void BSP_Test_f(void)
     int ret;
     unsigned start, end;
 
-    list = FS_ListFiles(NULL, ".bsp", FS_SEARCH_SAVEPATH | FS_SEARCH_RECURSIVE, &count);
+    list = FS_ListFiles(NULL, ".bsp", FS_SEARCH_RECURSIVE, &count);
     if (!list) {
         Com_Printf("No maps found\n");
         return;
@@ -519,7 +540,7 @@ static void Com_TestModels_f(void)
     int i, count, errors;
     unsigned start, end;
 
-    list = FS_ListFiles(NULL, ".md2", FS_SEARCH_SAVEPATH | FS_SEARCH_RECURSIVE, &count);
+    list = FS_ListFiles(NULL, ".md2", FS_SEARCH_RECURSIVE, &count);
     if (!list) {
         Com_Printf("No models found\n");
         return;
@@ -531,7 +552,7 @@ static void Com_TestModels_f(void)
 
     errors = 0;
     for (i = 0; i < count; i++) {
-        if (i > 0 && !(i & (MAX_MODELS - 1))) {
+        if (i > 0 && !(i & (MAX_MODELS_OLD - 1))) {
             R_EndRegistration();
             R_BeginRegistration(NULL);
         }
@@ -557,7 +578,7 @@ static void Com_TestImages_f(void)
     int i, count, errors;
     unsigned start, end;
 
-    list = FS_ListFiles(NULL, ".pcx;.wal;.png;.jpg;.tga", FS_SEARCH_SAVEPATH | FS_SEARCH_RECURSIVE, &count);
+    list = FS_ListFiles(NULL, ".pcx;.wal;.png;.jpg;.tga", FS_SEARCH_RECURSIVE, &count);
     if (!list) {
         Com_Printf("No images found\n");
         return;
@@ -569,11 +590,11 @@ static void Com_TestImages_f(void)
 
     errors = 0;
     for (i = 0; i < count; i++) {
-        if (i > 0 && !(i & (MAX_IMAGES - 1))) {
+        if (i > 0 && !(i & (MAX_IMAGES_OLD - 1))) {
             R_EndRegistration();
             R_BeginRegistration(NULL);
         }
-        if (!R_RegisterPic2(va("/%s", (char *)list[i]))) {
+        if (!R_RegisterTempPic(va("/%s", (char *)list[i]))) {
             errors++;
             continue;
         }
@@ -597,7 +618,7 @@ static void Com_TestSounds_f(void)
     int i, count, errors;
     unsigned start, end;
 
-    list = FS_ListFiles(NULL, ".wav", FS_SEARCH_SAVEPATH | FS_SEARCH_RECURSIVE, &count);
+    list = FS_ListFiles(NULL, ".wav", FS_SEARCH_RECURSIVE, &count);
     if (!list) {
         Com_Printf("No sounds found\n");
         return;
@@ -609,7 +630,7 @@ static void Com_TestSounds_f(void)
 
     errors = 0;
     for (i = 0; i < count; i++) {
-        if (i > 0 && !(i & (MAX_SOUNDS - 1))) {
+        if (i > 0 && !(i & (MAX_SOUNDS_OLD - 1))) {
             S_EndRegistration();
             S_BeginRegistration();
         }
@@ -789,6 +810,18 @@ static void Com_ExtCmpTest_f(void)
     Com_Printf("%d failures, %d strings tested\n", errors, numextcmptests);
 }
 
+static void Com_NextPathTest_f(void)
+{
+    const char *path = NULL;
+
+    while (1) {
+        path = FS_NextPath(path);
+        if (!path)
+            break;
+        Com_Printf("%s\n", path);
+    }
+}
+
 static const cmdreg_t c_test[] = {
     { "error", Com_Error_f },
     { "errordrop", Com_ErrorDrop_f },
@@ -807,10 +840,12 @@ static const cmdreg_t c_test[] = {
 #endif
 #if USE_CLIENT
     { "soundtest", Com_TestSounds_f },
+    { "activate", Com_Activate_f },
 #endif
     { "mdfourtest", Com_MdfourTest_f },
     { "mdfoursum", Com_MdfourSum_f },
     { "extcmptest", Com_ExtCmpTest_f },
+    { "nextpathtest", Com_NextPathTest_f },
     { NULL }
 };
 

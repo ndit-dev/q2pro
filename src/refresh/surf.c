@@ -21,6 +21,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
  *
  */
 #include "gl.h"
+#include "common/mdfour.h"
 
 lightmap_builder_t lm;
 
@@ -141,7 +142,7 @@ static void add_dynamic_lights(mface_t *surf)
     t_scale = surf->lm_scale[1];
 
     for (i = 0; i < glr.fd.num_dlights; i++) {
-        if (!(surf->dlightbits & BIT(i)))
+        if (!(surf->dlightbits & BIT_ULL(i)))
             continue;
 
         light = &glr.fd.dlights[i];
@@ -198,7 +199,7 @@ static void add_light_styles(mface_t *surf, int size)
     }
 
     // init primary lightmap
-    style = LIGHT_STYLE(surf, 0);
+    style = LIGHT_STYLE(surf->styles[0]);
 
     src = surf->lightmap;
     bl = blocklights;
@@ -220,7 +221,7 @@ static void add_light_styles(mface_t *surf, int size)
 
     // add remaining lightmaps
     for (i = 1; i < surf->numstyles; i++) {
-        style = LIGHT_STYLE(surf, i);
+        style = LIGHT_STYLE(surf->styles[i]);
 
         bl = blocklights;
         for (j = 0; j < size; j++, bl += 3, src += 3) {
@@ -272,7 +273,7 @@ void GL_PushLights(mface_t *surf)
     if (!surf->lightmap) {
         return;
     }
-    if (surf->drawflags & SURF_NOLM_MASK) {
+    if (surf->drawflags & gl_static.nolm_mask) {
         return;
     }
     if (!surf->texnum[1]) {
@@ -287,7 +288,7 @@ void GL_PushLights(mface_t *surf)
 
     // check for light style updates
     for (i = 0; i < surf->numstyles; i++) {
-        style = LIGHT_STYLE(surf, i);
+        style = LIGHT_STYLE(surf->styles[i]);
         if (style->white != surf->stylecache[i]) {
             update_dynamic_lightmap(surf);
             return;
@@ -451,7 +452,7 @@ static void LM_RebuildSurfaces(void)
         if (!surf->lightmap) {
             continue;
         }
-        if (surf->drawflags & SURF_NOLM_MASK) {
+        if (surf->drawflags & gl_static.nolm_mask) {
             continue;
         }
         if (!surf->texnum[1]) {
@@ -521,6 +522,7 @@ static void build_surface_poly(mface_t *surf, vec_t *vbo)
 
     surf->texnum[0] = texinfo->image->texnum;
     surf->texnum[1] = 0;
+    surf->texnum[2] = texinfo->image->glow_texnum;
 
     color = color_for_surface(surf);
 
@@ -530,7 +532,9 @@ static void build_surface_poly(mface_t *surf, vec_t *vbo)
         if (!(surf->drawflags & SURF_TRANS_MASK)) {
             surf->statebits |= GLS_TEXTURE_REPLACE;
         }
-        if (!(surf->drawflags & SURF_COLOR_MASK) ||
+        // always use intensity on lightmapped surfaces
+        if ((surf->lightmap && bsp->lm_decoupled) ||
+            !(surf->drawflags & SURF_COLOR_MASK) ||
             (!(surf->drawflags & SURF_TRANS_MASK) && strstr(texinfo->name, "lava"))) {
             surf->statebits |= GLS_INTENSITY_ENABLE;
         }
@@ -551,7 +555,7 @@ static void build_surface_poly(mface_t *surf, vec_t *vbo)
     }
 
     if (surf->drawflags & SURF_FLOWING) {
-        surf->statebits |= GLS_SCROLL_ENABLE | GLS_SCROLL_FLIP;
+        surf->statebits |= GLS_SCROLL_ENABLE;
         if (surf->drawflags & SURF_WARP) {
             surf->statebits |= GLS_SCROLL_SLOW;
         }
@@ -684,7 +688,7 @@ static void build_surface_light(mface_t *surf, vec_t *vbo)
     if (!surf->lightmap)
         return;
 
-    if (surf->drawflags & SURF_NOLM_MASK)
+    if (surf->drawflags & gl_static.nolm_mask)
         return;
 
     smax = surf->lm_width;
@@ -743,6 +747,21 @@ static void duplicate_surface_lmtc(mface_t *surf, vec_t *vbo)
 
         vbo += VERTEX_SIZE;
     }
+}
+
+static void calc_surface_hash(mface_t *surf)
+{
+    uint32_t args[] = { surf->texnum[0], surf->texnum[1], surf->texnum[2], surf->statebits };
+    struct mdfour md;
+    uint8_t out[16];
+
+    mdfour_begin(&md);
+    mdfour_update(&md, (uint8_t *)args, sizeof(args));
+    mdfour_result(&md, out);
+
+    surf->hash = 0;
+    for (int i = 0; i < 16; i++)
+        surf->hash ^= out[i];
 }
 
 static bool create_surface_vbo(size_t size)
@@ -830,6 +849,8 @@ static void upload_world_surfaces(void)
             normalize_surface_lmtc(surf, vbo);
         else
             duplicate_surface_lmtc(surf, vbo);
+
+        calc_surface_hash(surf);
 
         currvert += surf->numsurfedges;
     }
@@ -974,6 +995,15 @@ void GL_LoadWorld(const char *name)
         Hunk_End(&gl_static.world.hunk);
 
         Com_DPrintf("%s: %zu bytes of vertex data on hunk\n", __func__, size);
+    }
+
+    gl_static.nolm_mask = SURF_NOLM_MASK_DEFAULT;
+
+    // only supported in DECOUPLED_LM maps because vanilla maps have broken
+    // lightofs for liquids/alphas. legacy renderer doesn't support lightmapped
+    // liquids too.
+    if (bsp->lm_decoupled && gl_static.use_shaders) {
+        gl_static.nolm_mask = SURF_NOLM_MASK_REMASTER;
     }
 
     // begin building lightmaps

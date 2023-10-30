@@ -18,6 +18,7 @@ common_src = [
   'src/common/field.c',
   'src/common/fifo.c',
   'src/common/files.c',
+  'src/common/hash_map.c',
   'src/common/math.c',
   'src/common/mdfour.c',
   'src/common/msg.c',
@@ -33,7 +34,6 @@ common_src = [
 
 client_src = [
   'src/client/ascii.c',
-  'src/client/cin.c',
   'src/client/console.c',
   'src/client/crc.c',
   'src/client/demo.c',
@@ -266,7 +266,7 @@ if system_wide
   homedir = get_option('homedir')
 endif
 
-common_args = ['-DHAVE_CONFIG_H']
+common_args = ['-DHAVE_CONFIG_H', '-DUSE_PROTOCOL_EXTENSIONS=1']
 if not win32
   common_args += '-D_GNU_SOURCE'
 endif
@@ -287,6 +287,10 @@ if cc.get_argument_syntax() == 'gcc'
 
   test_args = [
     '-fsigned-char',
+    '-fms-extensions',
+    '-fno-math-errno',
+    '-Wno-microsoft-anon-tag',
+    '-Wno-tautological-constant-out-of-range-compare',
     '-Wpointer-arith',
     '-Wformat-security',
     '-Werror=vla',
@@ -328,6 +332,7 @@ if not zlib.found()
 endif
 
 png = dependency('libpng',
+  version:         '>= 1.6.11',
   required:        get_option('libpng'),
   default_options: fallback_opt,
 )
@@ -419,6 +424,21 @@ if ogg.found() and vorbisfile.found()
   config.set10('USE_OGG', true)
 endif
 
+# require FFmpeg >= 5.1.3
+avcodec_opt = get_option('avcodec')
+avcodec = dependency('libavcodec', version: '>= 59.37.100', required: avcodec_opt)
+avformat = dependency('libavformat', version: '>= 59.27.100', required: avcodec_opt)
+avutil = dependency('libavutil', version: '>= 57.28.100', required: avcodec_opt)
+swresample = dependency('libswresample', version: '>= 4.7.100', required: avcodec_opt)
+swscale = dependency('libswscale', version: '>= 6.7.100', required: avcodec_opt)
+if avcodec.found() and avformat.found() and avutil.found() and swresample.found() and swscale.found()
+  client_src += 'src/client/ffcin.c'
+  client_deps += [avcodec, avformat, avutil, swresample, swscale]
+  config.set10('USE_AVCODEC', true)
+else
+  client_src += 'src/client/cin.c'
+endif
+
 if win32
   subdir('src/windows')
 else
@@ -438,7 +458,7 @@ if get_option('client-ui')
   endif
 endif
 
-if get_option('software-sound')
+if get_option('software-sound').require(win32 or sdl2.found()).allowed()
   client_src += 'src/client/sound/dma.c'
   if sdl2.found()
     client_src += 'src/unix/sound/sdl.c'
@@ -512,6 +532,11 @@ if get_option('tests')
   config.set10('USE_TESTS', true)
 endif
 
+if get_option('game-abi-hack').require(x86 and cc.get_id() == 'gcc' and cc.has_argument('-mstackrealign')).allowed()
+  config.set10('USE_GAME_ABI_HACK', true)
+  engine_args += '-mstackrealign'
+endif
+
 executable('q2pro', common_src, client_src, refresh_src,
   dependencies:          common_deps + client_deps,
   include_directories:   'inc',
@@ -532,16 +557,18 @@ executable('q2proded', common_src, server_src,
   install:               system_wide,
 )
 
-shared_library('game' + cpu, game_src,
-  name_prefix:           '',
-  dependencies:          game_deps,
-  include_directories:   'inc',
-  gnu_symbol_visibility: 'hidden',
-  link_args:             dll_link_args,
-  install:               system_wide,
-  install_dir:           libdir / get_option('base-game'),
-  override_options:      get_option('game-build-options'),
-)
+## Disabling building gamelib for now, no need
+
+# shared_library('game' + cpu, action_src,
+#   name_prefix:           '',
+#   dependencies:          game_deps,
+#   include_directories:   'inc',
+#   gnu_symbol_visibility: 'hidden',
+#   link_args:             dll_link_args,
+#   install:               system_wide,
+#   install_dir:           libdir / get_option('base-game'),
+#   override_options:      get_option('game-build-options'),
+# )
 
 config.set('REVISION',            meson.project_version().substring(1).split('~')[0].to_int())
 config.set_quoted('VERSION',      meson.project_version())
@@ -560,9 +587,9 @@ config.set_quoted('VID_MODELIST', get_option('vid-modelist'))
 config.set10('USE_AUTOREPLY',     get_option('auto-reply'))
 config.set10('USE_DEBUG',         get_option('debug'))
 config.set10('USE_FPS',           get_option('variable-fps'))
-config.set10('USE_GAME_ABI_HACK', get_option('game-abi-hack').require(x86 and cc.get_id() == 'gcc').allowed())
 config.set10('USE_ICMP',          get_option('icmp-errors').require(win32 or cc.has_header('linux/errqueue.h')).allowed())
 config.set10('USE_MD3',           get_option('md3'))
+config.set10('USE_MD5',           get_option('md5'))
 config.set10('USE_PACKETDUP',     get_option('packetdup-hack'))
 config.set10('USE_TGA',           get_option('tga'))
 config.set10('USE_' + host_machine.endian().to_upper() + '_ENDIAN', true)
@@ -576,6 +603,7 @@ endif
 summary({
   'anticheat-server'   : config.get('USE_AC_SERVER', '') != '',
   'auto-reply'         : config.get('USE_AUTOREPLY', 0) != 0,
+  'avcodec'            : config.get('USE_AVCODEC', 0) != 0,
   'client-gtv'         : config.get('USE_CLIENT_GTV', 0) != 0,
   'client-ui'          : config.get('USE_UI', 0) != 0,
   'debug'              : config.get('USE_DEBUG', 0) != 0,
@@ -585,6 +613,7 @@ summary({
   'libjpeg'            : config.get('USE_JPG', 0) != 0,
   'libpng'             : config.get('USE_PNG', 0) != 0,
   'md3'                : config.get('USE_MD3', 0) != 0,
+  'md5'                : config.get('USE_MD5', 0) != 0,
   'mvd-client'         : config.get('USE_MVD_CLIENT', 0) != 0,
   'mvd-server'         : config.get('USE_MVD_SERVER', 0) != 0,
   'ogg'                : config.get('USE_OGG', 0) != 0,

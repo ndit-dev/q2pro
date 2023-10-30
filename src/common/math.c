@@ -488,4 +488,96 @@ void SetupRotationMatrix(vec3_t matrix[3], const vec3_t dir, float degrees)
     matrix[2][2] = (one_c * zz) + c;
 }
 
+#if USE_MD5
+
+#define X 0
+#define Y 1
+#define Z 2
+#define W 3
+
+void Quat_ComputeW(quat_t q)
+{
+    float t = 1.0f - (q[X] * q[X]) - (q[Y] * q[Y]) - (q[Z] * q[Z]);
+
+    if (t < 0.0f) {
+        q[W] = 0.0f;
+    } else {
+        q[W] = -sqrtf(t);
+    }
+}
+
+#define QUAT_EPSILON 0.000001f
+
+void Quat_SLerp(const quat_t qa, const quat_t qb, float backlerp, float frontlerp, quat_t out)
+{
+    if (backlerp <= 0.0f) {
+        Vector4Copy(qb, out);
+        return;
+    } else if (backlerp >= 1.0f) {
+        Vector4Copy(qa, out);
+        return;
+    }
+
+    // compute "cosine of angle between quaternions" using dot product
+    float cosOmega = Dot4Product(qa, qb);
+
+    /* If negative dot, use -q1.  Two quaternions q and -q
+       represent the same rotation, but may produce
+       different slerp.  We chose q or -q to rotate using
+       the acute angle. */
+    float q1w = qb[W];
+    float q1x = qb[X];
+    float q1y = qb[Y];
+    float q1z = qb[Z];
+
+    if (cosOmega < 0.0f) {
+        q1w = -q1w;
+        q1x = -q1x;
+        q1y = -q1y;
+        q1z = -q1z;
+        cosOmega = -cosOmega;
+    }
+
+    // compute interpolation fraction
+    float k0, k1;
+
+    if (1.0f - cosOmega <= QUAT_EPSILON) {
+        // very close - just use linear interpolation
+        k0 = backlerp;
+        k1 = frontlerp;
+    } else {
+        // compute the sin of the angle using the trig identity sin^2(omega) + cos^2(omega) = 1
+        float sinOmega = sqrtf(1.0f - (cosOmega * cosOmega));
+
+        // compute the angle from its sin and cosine
+        float omega = atan2f(sinOmega, cosOmega);
+        float oneOverSinOmega = 1.0f / sinOmega;
+
+        k0 = sinf(backlerp * omega) * oneOverSinOmega;
+        k1 = sinf(frontlerp * omega) * oneOverSinOmega;
+    }
+
+    out[W] = (k0 * qa[W]) + (k1 * q1w);
+    out[X] = (k0 * qa[X]) + (k1 * q1x);
+    out[Y] = (k0 * qa[Y]) + (k1 * q1y);
+    out[Z] = (k0 * qa[Z]) + (k1 * q1z);
+}
+
+float Quat_Normalize(quat_t q)
+{
+    float length = sqrtf(Dot4Product(q, q));
+
+    if (length) {
+        float ilength = 1 / length;
+        q[X] *= ilength;
+        q[Y] *= ilength;
+        q[Z] *= ilength;
+        q[W] *= ilength;
+    }
+
+    return length;
+}
+
+#endif  // USE_MD5
+
 #endif  // USE_REF

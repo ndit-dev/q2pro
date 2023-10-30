@@ -13,6 +13,11 @@ option('auto-reply',
   value: true,
   description: 'Make client auto reply to !version chat probes')
 
+option('avcodec',
+  type: 'feature',
+  value: 'auto',
+  description: 'libavcodec support')
+
 option('base-game',
   type: 'string',
   value: 'baseaq',
@@ -20,7 +25,7 @@ option('base-game',
 
 option('client-gtv',
   type: 'boolean',
-  value: false,
+  value: true,
   description: 'Experimental client GTV relay')
 
 option('client-ui',
@@ -84,6 +89,11 @@ option('md3',
   value: true,
   description: 'MD3 models support')
 
+option('md5',
+  type: 'boolean',
+  value: true,
+  description: 'MD5 (re-release) models support')
+
 option('mvd-client',
   type: 'boolean',
   value: true,
@@ -122,8 +132,8 @@ option('sdl2',
   description: 'SDL2 video and audio drivers')
 
 option('software-sound',
-  type: 'boolean',
-  value: true,
+  type: 'feature',
+  value: 'auto',
   description: 'Software sound backend')
 
 option('system-console',

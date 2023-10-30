@@ -48,8 +48,13 @@ cvar_t *gl_dynamic;
 cvar_t *gl_dlight_falloff;
 cvar_t *gl_modulate_entities;
 cvar_t *gl_doublelight_entities;
+cvar_t *gl_glowmap_intensity;
 cvar_t *gl_fontshadow;
 cvar_t *gl_shaders;
+#if USE_MD5
+cvar_t *gl_md5_load;
+cvar_t *gl_md5_use;
+#endif
 cvar_t *gl_waterwarp;
 cvar_t *gl_swapinterval;
 
@@ -77,6 +82,7 @@ cvar_t *gl_lockpvs;
 cvar_t *gl_lightmap;
 cvar_t *gl_fullbright;
 cvar_t *gl_vertexlight;
+cvar_t *gl_lightgrid;
 cvar_t *gl_polyblend;
 cvar_t *gl_showerrors;
 
@@ -154,6 +160,7 @@ glCullResult_t GL_CullSphere(const vec3_t origin, float radius)
         return CULL_IN;
     }
 
+    radius *= glr.entscale;
     cull = CULL_IN;
     for (i = 0, p = glr.frustumPlanes; i < 4; i++, p++) {
         dist = PlaneDiff(origin, p);
@@ -269,14 +276,26 @@ void GL_MultMatrix(GLfloat *restrict p, const GLfloat *restrict a, const GLfloat
 
 void GL_SetEntityAxis(void)
 {
-    if (VectorEmpty(glr.ent->angles)) {
-        glr.entrotated = false;
+    entity_t *e = glr.ent;
+
+    glr.entrotated = false;
+    glr.entscale = 1;
+
+    if (VectorEmpty(e->angles)) {
         VectorSet(glr.entaxis[0], 1, 0, 0);
         VectorSet(glr.entaxis[1], 0, 1, 0);
         VectorSet(glr.entaxis[2], 0, 0, 1);
     } else {
+        AnglesToAxis(e->angles, glr.entaxis);
         glr.entrotated = true;
-        AnglesToAxis(glr.ent->angles, glr.entaxis);
+    }
+
+    if (e->scale && e->scale != 1) {
+        VectorScale(glr.entaxis[0], e->scale, glr.entaxis[0]);
+        VectorScale(glr.entaxis[1], e->scale, glr.entaxis[1]);
+        VectorScale(glr.entaxis[2], e->scale, glr.entaxis[2]);
+        glr.entrotated = true;
+        glr.entscale = e->scale;
     }
 }
 
@@ -382,7 +401,118 @@ static void GL_DrawNullModel(void)
     qglDrawArrays(GL_LINES, 0, 6);
 }
 
-static void GL_DrawEntities(int mask)
+static void make_flare_quad(const entity_t *e, float scale, vec3_t points[4])
+{
+    vec3_t up, down, left, right;
+
+    scale *= e->scale;
+
+    VectorScale(glr.viewaxis[1], scale, left);
+    VectorScale(glr.viewaxis[1], -scale, right);
+    VectorScale(glr.viewaxis[2], -scale, down);
+    VectorScale(glr.viewaxis[2], scale, up);
+
+    VectorAdd3(e->origin, down, left, points[0]);
+    VectorAdd3(e->origin, up, left, points[1]);
+    VectorAdd3(e->origin, down, right, points[2]);
+    VectorAdd3(e->origin, up, right, points[3]);
+}
+
+static void GL_OccludeFlares(void)
+{
+    vec3_t points[4];
+    entity_t *e;
+    glquery_t *q;
+    int i;
+
+    if (!glr.num_flares)
+        return;
+    if (!gl_static.queries)
+        return;
+
+    GL_LoadMatrix(glr.viewmatrix);
+    GL_StateBits(GLS_DEPTHMASK_FALSE);
+    GL_ArrayBits(GLA_VERTEX);
+    qglColorMask(0, 0, 0, 0);
+    GL_ActiveTexture(0);
+    qglDisable(GL_TEXTURE_2D);
+    GL_VertexPointer(3, 0, &points[0][0]);
+
+    for (i = 0, e = glr.fd.entities; i < glr.fd.num_entities; i++, e++) {
+        if (!(e->flags & RF_FLARE))
+            continue;
+
+        q = HashMap_Lookup(glquery_t, gl_static.queries, &e->skinnum);
+        if (q && q->pending)
+            continue;
+
+        if (!q) {
+            glquery_t new = { 0 };
+            qglGenQueries(1, &new.query);
+            HashMap_Insert(gl_static.queries, &e->skinnum, &new);
+            q = HashMap_GetValue(glquery_t, gl_static.queries, HashMap_Size(gl_static.queries) - 1);
+        }
+
+        make_flare_quad(e, 2.5f, points);
+
+        qglBeginQuery(gl_static.samples_passed, q->query);
+        qglDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+        qglEndQuery(gl_static.samples_passed);
+
+        q->pending = true;
+    }
+
+    qglEnable(GL_TEXTURE_2D);
+    qglColorMask(1, 1, 1, 1);
+}
+
+static void GL_DrawFlare(const entity_t *e)
+{
+    vec3_t points[4];
+    GLuint result;
+    glquery_t *q;
+
+    if (!gl_static.queries)
+        return;
+
+    q = HashMap_Lookup(glquery_t, gl_static.queries, &e->skinnum);
+    if (!q) {
+        glr.num_flares++;
+        return;
+    }
+
+    if (q->pending) {
+        qglGetQueryObjectuiv(q->query, GL_QUERY_RESULT_AVAILABLE, &result);
+        if (result) {
+            qglGetQueryObjectuiv(q->query, GL_QUERY_RESULT, &result);
+            q->visible = result;
+            q->pending = false;
+        }
+    }
+
+    if (!q->pending)
+        glr.num_flares++;
+
+    if (!q->visible)
+        return;
+
+    GL_LoadMatrix(glr.viewmatrix);
+    GL_BindTexture(0, IMG_ForHandle(e->skin)->texnum);
+    GL_StateBits(GLS_DEPTHTEST_DISABLE | GLS_DEPTHMASK_FALSE | GLS_BLEND_ADD);
+    GL_ArrayBits(GLA_VERTEX | GLA_TC);
+    GL_Color(e->rgba.u8[0] / 255.0f,
+             e->rgba.u8[1] / 255.0f,
+             e->rgba.u8[2] / 255.0f,
+             e->alpha * 0.5f);
+
+    make_flare_quad(e, 25.0f, points);
+
+    GL_TexCoordPointer(2, 0, quad_tc);
+    GL_VertexPointer(3, 0, &points[0][0]);
+    qglDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+}
+
+static void GL_DrawEntities(int musthave, int canthave)
 {
     entity_t *ent, *last;
     model_t *model;
@@ -398,7 +528,11 @@ static void GL_DrawEntities(int mask)
             glr.num_beams++;
             continue;
         }
-        if ((ent->flags & RF_TRANSLUCENT) != mask) {
+        if ((ent->flags & musthave) != musthave || (ent->flags & canthave)) {
+            continue;
+        }
+        if (ent->flags & RF_FLARE) {
+            GL_DrawFlare(ent);
             continue;
         }
 
@@ -538,9 +672,11 @@ void R_RenderFrame(refdef_t *fd)
     Q_assert(gl_static.world.cache || (fd->rdflags & RDF_NOWORLDMODEL));
 
     glr.drawframe++;
+    glr.rand_seed = fd->time * 20;
 
     glr.fd = *fd;
     glr.num_beams = 0;
+    glr.num_flares = 0;
 
     if (gl_dynamic->integer != 1 || gl_vertexlight->integer) {
         glr.fd.num_dlights = 0;
@@ -576,17 +712,21 @@ void R_RenderFrame(refdef_t *fd)
         GL_DrawWorld();
     }
 
-    GL_DrawEntities(0);
+    GL_DrawEntities(0, RF_TRANSLUCENT);
 
     GL_DrawBeams();
 
     GL_DrawParticles();
 
-    GL_DrawEntities(RF_TRANSLUCENT);
+    GL_DrawEntities(RF_TRANSLUCENT, RF_WEAPONMODEL);
+
+    GL_OccludeFlares();
 
     if (!(glr.fd.rdflags & RDF_NOWORLDMODEL)) {
         GL_DrawAlphaFaces();
     }
+
+    GL_DrawEntities(RF_TRANSLUCENT | RF_WEAPONMODEL, 0);
 
     if (waterwarp) {
         qglBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -770,8 +910,13 @@ static void GL_Register(void)
     gl_modulate_entities = Cvar_Get("gl_modulate_entities", "1", 0);
     gl_modulate_entities->changed = gl_modulate_entities_changed;
     gl_doublelight_entities = Cvar_Get("gl_doublelight_entities", "1", 0);
+    gl_glowmap_intensity = Cvar_Get("gl_glowmap_intensity", "0.75", 0);
     gl_fontshadow = Cvar_Get("gl_fontshadow", "0", 0);
     gl_shaders = Cvar_Get("gl_shaders", (gl_config.caps & QGL_CAP_SHADER) ? "1" : "0", CVAR_REFRESH);
+#if USE_MD5
+    gl_md5_load = Cvar_Get("gl_md5_load", "1", CVAR_FILES);
+    gl_md5_use = Cvar_Get("gl_md5_use", "1", 0);
+#endif
     gl_waterwarp = Cvar_Get("gl_waterwarp", "0", 0);
     gl_swapinterval = Cvar_Get("gl_swapinterval", "1", CVAR_ARCHIVE);
     gl_swapinterval->changed = gl_swapinterval_changed;
@@ -804,6 +949,7 @@ static void GL_Register(void)
     gl_fullbright->changed = gl_lightmap_changed;
     gl_vertexlight = Cvar_Get("gl_vertexlight", "0", 0);
     gl_vertexlight->changed = gl_lightmap_changed;
+    gl_lightgrid = Cvar_Get("gl_lightgrid", "1", 0);
     gl_polyblend = Cvar_Get("gl_polyblend", "1", 0);
     gl_showerrors = Cvar_Get("gl_showerrors", "1", 0);
 
@@ -887,6 +1033,45 @@ static void GL_PostInit(void)
     MOD_Init();
 }
 
+static void GL_InitQueries(void)
+{
+    if (!qglBeginQuery)
+        return;
+
+    gl_static.samples_passed = GL_SAMPLES_PASSED;
+    if (gl_config.ver_gl >= QGL_VER(3, 3) || gl_config.ver_es >= QGL_VER(3, 0))
+        gl_static.samples_passed = GL_ANY_SAMPLES_PASSED;
+
+    gl_static.queries = HashMap_Create(int, glquery_t, HashInt32, NULL);
+}
+
+static void GL_ShutdownQueries(void)
+{
+    if (!gl_static.queries)
+        return;
+
+    uint32_t map_size = HashMap_Size(gl_static.queries);
+    for (int i = 0; i < map_size; i++) {
+        glquery_t *q = HashMap_GetValue(glquery_t, gl_static.queries, i);
+        qglDeleteQueries(1, &q->query);
+    }
+
+    HashMap_Destroy(gl_static.queries);
+    gl_static.queries = NULL;
+}
+
+static void GL_ClearQueries(void)
+{
+    if (!gl_static.queries)
+        return;
+
+    uint32_t map_size = HashMap_Size(gl_static.queries);
+    for (int i = 0; i < map_size; i++) {
+        glquery_t *q = HashMap_GetValue(glquery_t, gl_static.queries, i);
+        q->pending = q->visible = false;
+    }
+}
+
 // ==============================================================================
 
 /*
@@ -925,6 +1110,8 @@ bool R_Init(bool total)
 
     GL_InitState();
 
+    GL_InitQueries();
+
     GL_InitTables();
 
     GL_PostInit();
@@ -959,6 +1146,8 @@ void R_Shutdown(bool total)
     if (!total) {
         return;
     }
+
+    GL_ShutdownQueries();
 
     GL_ShutdownState();
 
@@ -1023,6 +1212,8 @@ void R_BeginRegistration(const char *name)
         Q_concat(fullname, sizeof(fullname), "maps/", name, ".bsp");
         GL_LoadWorld(fullname);
     }
+
+    GL_ClearQueries();
 }
 
 /*

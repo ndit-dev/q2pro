@@ -347,177 +347,99 @@ TARGA IMAGES
 
 #define TARGA_HEADER_SIZE  18
 
-#define TGA_DECODE(x) \
-    static int tga_decode_##x(byte *in, byte **row_pointers, int cols, int rows, byte *max_in)
-
-typedef int (*tga_decode_t)(byte *, byte **, int, int, byte *);
-
-TGA_DECODE(bgr)
-{
-    int col, row;
-    byte *out_row;
-
-    for (row = 0; row < rows; row++) {
-        out_row = row_pointers[row];
-        for (col = 0; col < cols; col++, out_row += 4, in += 3) {
-            out_row[0] = in[2];
-            out_row[1] = in[1];
-            out_row[2] = in[0];
-            out_row[3] = 255;
-        }
-    }
-
-    return Q_ERR_SUCCESS;
+#define TGA_DECODE_RAW(x, bpp, a, b, c, d)                              \
+static int tga_decode_##x##_raw(const byte *in, byte **row_pointers,    \
+                                int cols, int rows, const byte *max_in) \
+{                                                                       \
+    int col, row;                                                       \
+    byte *out_row;                                                      \
+                                                                        \
+    for (row = 0; row < rows; row++) {                                  \
+        out_row = row_pointers[row];                                    \
+        for (col = 0; col < cols; col++, out_row += 4, in += bpp) {     \
+            out_row[0] = a;                                             \
+            out_row[1] = b;                                             \
+            out_row[2] = c;                                             \
+            out_row[3] = d;                                             \
+        }                                                               \
+    }                                                                   \
+                                                                        \
+    return Q_ERR_SUCCESS;                                               \
 }
 
-TGA_DECODE(bgra)
-{
-    int col, row;
-    byte *out_row;
-
-    for (row = 0; row < rows; row++) {
-        out_row = row_pointers[row];
-        for (col = 0; col < cols; col++, out_row += 4, in += 4) {
-            out_row[0] = in[2];
-            out_row[1] = in[1];
-            out_row[2] = in[0];
-            out_row[3] = in[3];
-        }
-    }
-
-    return Q_ERR_SUCCESS;
+#define TGA_DECODE_RLE(x, bpp, a, b, c, d)                              \
+static int tga_decode_##x##_rle(const byte *in, byte **row_pointers,    \
+                                int cols, int rows, const byte *max_in) \
+{                                                                       \
+    int col, row;                                                       \
+    byte *out_row;                                                      \
+    uint32_t color;                                                     \
+    int j, packet_header, packet_size;                                  \
+                                                                        \
+    for (row = 0; row < rows; row++) {                                  \
+        out_row = row_pointers[row];                                    \
+                                                                        \
+        for (col = 0; col < cols;) {                                    \
+            packet_header = *in++;                                      \
+            packet_size = 1 + (packet_header & 0x7f);                   \
+                                                                        \
+            if (packet_header & 0x80) {                                 \
+                if (max_in - in < bpp)                                  \
+                    return Q_ERR_OVERRUN;                               \
+                                                                        \
+                color = MakeColor(a, b, c, d);                          \
+                in += bpp;                                              \
+                for (j = 0; j < packet_size; j++) {                     \
+                    *(uint32_t *)out_row = color;                       \
+                    out_row += 4;                                       \
+                                                                        \
+                    if (++col == cols) {                                \
+                        col = 0;                                        \
+                        if (++row == rows)                              \
+                            return Q_ERR_SUCCESS;                       \
+                        out_row = row_pointers[row];                    \
+                    }                                                   \
+                }                                                       \
+            } else {                                                    \
+                if (max_in - in < bpp * packet_size)                    \
+                    return Q_ERR_OVERRUN;                               \
+                                                                        \
+                for (j = 0; j < packet_size; j++) {                     \
+                    out_row[0] = a;                                     \
+                    out_row[1] = b;                                     \
+                    out_row[2] = c;                                     \
+                    out_row[3] = d;                                     \
+                    out_row += 4;                                       \
+                    in += bpp;                                          \
+                                                                        \
+                    if (++col == cols) {                                \
+                        col = 0;                                        \
+                        if (++row == rows)                              \
+                            return Q_ERR_SUCCESS;                       \
+                        out_row = row_pointers[row];                    \
+                    }                                                   \
+                }                                                       \
+            }                                                           \
+        }                                                               \
+    }                                                                   \
+                                                                        \
+    return Q_ERR_SUCCESS;                                               \
 }
 
-TGA_DECODE(bgr_rle)
-{
-    int col, row;
-    byte *out_row;
-    uint32_t color;
-    int j, packet_header, packet_size;
+TGA_DECODE_RAW(mono, 1,   255,   255,   255, in[0])
+TGA_DECODE_RAW(bgr,  3, in[2], in[1], in[0],   255)
+TGA_DECODE_RAW(bgra, 4, in[2], in[1], in[0], in[3])
 
-    for (row = 0; row < rows; row++) {
-        out_row = row_pointers[row];
-
-        for (col = 0; col < cols;) {
-            packet_header = *in++;
-            packet_size = 1 + (packet_header & 0x7f);
-
-            if (packet_header & 0x80) {
-                // run-length packet
-                if (max_in - in < 3) {
-                    return Q_ERR_OVERRUN;
-                }
-                color = MakeColor(in[2], in[1], in[0], 255);
-                in += 3;
-                for (j = 0; j < packet_size; j++) {
-                    *(uint32_t *)out_row = color;
-                    out_row += 4;
-
-                    if (++col == cols) {
-                        // run spans across rows
-                        col = 0;
-                        if (++row == rows)
-                            goto break_out;
-                        out_row = row_pointers[row];
-                    }
-                }
-            } else {
-                // non run-length packet
-                if (max_in - in < 3 * packet_size) {
-                    return Q_ERR_OVERRUN;
-                }
-                for (j = 0; j < packet_size; j++) {
-                    out_row[0] = in[2];
-                    out_row[1] = in[1];
-                    out_row[2] = in[0];
-                    out_row[3] = 255;
-                    out_row += 4;
-                    in += 3;
-
-                    if (++col == cols) {
-                        // run spans across rows
-                        col = 0;
-                        if (++row == rows)
-                            goto break_out;
-                        out_row = row_pointers[row];
-                    }
-                }
-            }
-        }
-    }
-
-break_out:
-    return Q_ERR_SUCCESS;
-}
-
-TGA_DECODE(bgra_rle)
-{
-    int col, row;
-    byte *out_row;
-    uint32_t color;
-    int j, packet_header, packet_size;
-
-    for (row = 0; row < rows; row++) {
-        out_row = row_pointers[row];
-
-        for (col = 0; col < cols;) {
-            packet_header = *in++;
-            packet_size = 1 + (packet_header & 0x7f);
-
-            if (packet_header & 0x80) {
-                // run-length packet
-                if (max_in - in < 4) {
-                    return Q_ERR_OVERRUN;
-                }
-                color = MakeColor(in[2], in[1], in[0], in[3]);
-                in += 4;
-                for (j = 0; j < packet_size; j++) {
-                    *(uint32_t *)out_row = color;
-                    out_row += 4;
-
-                    if (++col == cols) {
-                        // run spans across rows
-                        col = 0;
-                        if (++row == rows)
-                            goto break_out;
-                        out_row = row_pointers[row];
-                    }
-                }
-            } else {
-                // non run-length packet
-                if (max_in - in < 4 * packet_size) {
-                    return Q_ERR_OVERRUN;
-                }
-                for (j = 0; j < packet_size; j++) {
-                    out_row[0] = in[2];
-                    out_row[1] = in[1];
-                    out_row[2] = in[0];
-                    out_row[3] = in[3];
-                    out_row += 4;
-                    in += 4;
-
-                    if (++col == cols) {
-                        // run spans across rows
-                        col = 0;
-                        if (++row == rows)
-                            goto break_out;
-                        out_row = row_pointers[row];
-                    }
-                }
-            }
-        }
-    }
-
-break_out:
-    return Q_ERR_SUCCESS;
-}
+TGA_DECODE_RLE(mono, 1,   255,   255,   255, in[0])
+TGA_DECODE_RLE(bgr,  3, in[2], in[1], in[0],   255)
+TGA_DECODE_RLE(bgra, 4, in[2], in[1], in[0], in[3])
 
 IMG_LOAD(TGA)
 {
     byte *pixels;
     byte *row_pointers[MAX_TEXTURE_SIZE];
     unsigned i, bpp, id_length, colormap_type, image_type, w, h, pixel_size, attributes, offset;
-    tga_decode_t decode;
+    int (*decode)(const byte *, byte **, int, int, const byte *) = NULL;
     int ret;
 
     if (rawlen < TARGA_HEADER_SIZE) {
@@ -548,8 +470,10 @@ IMG_LOAD(TGA)
         bpp = 4;
     } else if (pixel_size == 24) {
         bpp = 3;
+    } else if (pixel_size == 8) {
+        bpp = 1;
     } else {
-        Com_SetLastError("only 32 and 24 bit targa RGB images supported");
+        Com_SetLastError("unsupported number of bits per pixel");
         return Q_ERR_INVALID_FORMAT;
     }
 
@@ -559,24 +483,36 @@ IMG_LOAD(TGA)
     }
 
     if (image_type == 2) {
-        if (offset + w * h * bpp > rawlen) {
-            Com_SetLastError("data out of bounds");
-            return Q_ERR_INVALID_FORMAT;
-        }
         if (pixel_size == 32) {
-            decode = tga_decode_bgra;
-        } else {
-            decode = tga_decode_bgr;
+            decode = tga_decode_bgra_raw;
+        } else if (pixel_size == 24) {
+            decode = tga_decode_bgr_raw;
+        }
+    } else if (image_type == 3) {
+        if (pixel_size == 8) {
+            decode = tga_decode_mono_raw;
         }
     } else if (image_type == 10) {
         if (pixel_size == 32) {
             decode = tga_decode_bgra_rle;
-        } else {
+        } else if (pixel_size == 24) {
             decode = tga_decode_bgr_rle;
         }
-    } else {
-        Com_SetLastError("only type 2 and 10 targa RGB images supported");
+    } else if (image_type == 11) {
+        if (pixel_size == 8) {
+            decode = tga_decode_mono_rle;
+        }
+    }
+    if (!decode) {
+        Com_SetLastError("unsupported targa image type");
         return Q_ERR_INVALID_FORMAT;
+    }
+
+    if (image_type == 2 || image_type == 3) {
+        if (offset + w * h * bpp > rawlen) {
+            Com_SetLastError("data out of bounds");
+            return Q_ERR_INVALID_FORMAT;
+        }
     }
 
     pixels = IMG_AllocPixels(w * h * 4);
@@ -603,6 +539,8 @@ IMG_LOAD(TGA)
 
     if (pixel_size == 24)
         image->flags |= IF_OPAQUE;
+    else if (pixel_size == 8)
+        image->flags |= IF_TRANSPARENT;
 
     return Q_ERR_SUCCESS;
 }
@@ -991,6 +929,8 @@ IMG_LOAD(PNG)
         Com_SetLastError("png_create_read_struct failed");
         return Q_ERR_LIBRARY_ERROR;
     }
+
+    png_set_option(png_ptr, PNG_SKIP_sRGB_CHECK_PROFILE, PNG_OPTION_ON);
 
     info_ptr = png_create_info_struct(png_ptr);
     if (!info_ptr) {
@@ -1417,6 +1357,8 @@ static cvar_t   *r_texture_formats;
 static cvar_t   *r_texture_overrides;
 #endif
 
+static cvar_t   *r_glowmaps;
+
 static const cmd_option_t o_imagelist[] = {
     { "f", "fonts", "list fonts" },
     { "h", "help", "display this help message" },
@@ -1741,6 +1683,102 @@ static void print_error(const char *name, imageflags_t flags, int err)
     Com_LPrintf(level, "Couldn't load %s: %s\n", name, msg);
 }
 
+static int load_image_data(image_t *image, imageformat_t fmt, bool check_dimensions, byte **pic)
+{
+    int ret;
+
+#if USE_PNG || USE_JPG || USE_TGA
+    if (fmt == IM_MAX) {
+        // unknown extension, but give it a chance to load anyway
+        ret = try_other_formats(IM_MAX, image, pic);
+        if (ret == Q_ERR(ENOENT)) {
+            // not found, change error to invalid path
+            ret = Q_ERR_INVALID_PATH;
+        }
+    } else if (need_override_image(image->type, fmt)) {
+        // forcibly replace the extension
+        ret = try_other_formats(IM_MAX, image, pic);
+    } else {
+        // first try with original extension
+        ret = _try_image_format(fmt, image, pic);
+        if (ret == Q_ERR(ENOENT)) {
+            // retry with remaining extensions
+            ret = try_other_formats(fmt, image, pic);
+        }
+    }
+
+    // if we are replacing 8-bit texture with a higher resolution 32-bit
+    // texture, we need to recover original image dimensions
+    if (check_dimensions && fmt <= IM_WAL && ret > IM_WAL) {
+        get_image_dimensions(fmt, image);
+    }
+#else
+    if (fmt == IM_MAX) {
+        ret = Q_ERR_INVALID_PATH;
+    } else {
+        ret = _try_image_format(fmt, image, pic);
+    }
+#endif
+
+    return ret;
+}
+
+static void check_for_glow_map(image_t *image)
+{
+    extern cvar_t *gl_shaders;
+    imagetype_t type = image->type;
+    byte *glow_pic;
+    size_t len;
+    int ret;
+
+    // glow maps are not supported in legacy mode due to
+    // various corner cases that are not worth taking care of
+    if (!gl_shaders->integer)
+        return;
+
+    // use a temporary image_t to hold glow map stuff.
+    // it doesn't need to be registered.
+    image_t temporary = {
+        .type = type,
+        .flags = IF_TURBULENT,  // avoid post-processing
+    };
+
+    COM_StripExtension(temporary.name, image->name, sizeof(temporary.name));
+    len = Q_strlcat(temporary.name, "_glow.pcx", sizeof(temporary.name));
+    if (len >= sizeof(temporary.name))
+        return;
+    temporary.baselen = len - 4;
+
+    // load the pic from disk
+    glow_pic = NULL;
+
+    ret = load_image_data(&temporary, IM_PCX, false, &glow_pic);
+    if (ret < 0) {
+        print_error(temporary.name, 0, ret);
+        return;
+    }
+
+    // post-process data;
+    // - model glowmaps should be premultiplied
+    // - wal glowmaps just use the alpha, so the RGB channels are ignored
+    if (type == IT_SKIN) {
+        int size = temporary.upload_width * temporary.upload_height;
+        byte *dst = glow_pic;
+
+        for (int i = 0; i < size; i++, dst += 4) {
+            float alpha = dst[3] / 255.f;
+            dst[0] *= alpha;
+            dst[1] *= alpha;
+            dst[2] *= alpha;
+        }
+    }
+
+    IMG_Load(&temporary, glow_pic);
+    image->glow_texnum = temporary.texnum;
+
+    Z_Free(glow_pic);
+}
+
 // finds or loads the given image, adding it to the hash table.
 static image_t *find_or_load_image(const char *name, size_t len,
                                    imagetype_t type, imageflags_t flags)
@@ -1795,38 +1833,7 @@ static image_t *find_or_load_image(const char *name, size_t len,
     // load the pic from disk
     pic = NULL;
 
-#if USE_PNG || USE_JPG || USE_TGA
-    if (fmt == IM_MAX) {
-        // unknown extension, but give it a chance to load anyway
-        ret = try_other_formats(IM_MAX, image, &pic);
-        if (ret == Q_ERR(ENOENT)) {
-            // not found, change error to invalid path
-            ret = Q_ERR_INVALID_PATH;
-        }
-    } else if (need_override_image(type, fmt)) {
-        // forcibly replace the extension
-        ret = try_other_formats(IM_MAX, image, &pic);
-    } else {
-        // first try with original extension
-        ret = _try_image_format(fmt, image, &pic);
-        if (ret == Q_ERR(ENOENT)) {
-            // retry with remaining extensions
-            ret = try_other_formats(fmt, image, &pic);
-        }
-    }
-
-    // if we are replacing 8-bit texture with a higher resolution 32-bit
-    // texture, we need to recover original image dimensions
-    if (fmt <= IM_WAL && ret > IM_WAL) {
-        get_image_dimensions(fmt, image);
-    }
-#else
-    if (fmt == IM_MAX) {
-        ret = Q_ERR_INVALID_PATH;
-    } else {
-        ret = _try_image_format(fmt, image, &pic);
-    }
-#endif
+    ret = load_image_data(image, fmt, true, &pic);
 
     if (ret < 0) {
         print_error(image->name, flags, ret);
@@ -1843,6 +1850,10 @@ static image_t *find_or_load_image(const char *name, size_t len,
     image->aspect = (float)image->upload_width / image->upload_height;
 
     List_Append(&r_imageHash[hash], &image->entry);
+
+    // check for glow maps
+    if (r_glowmaps->integer && (type == IT_SKIN || type == IT_WALL))
+        check_for_glow_map(image);
 
     // upload the image
     IMG_Load(image, pic);
@@ -1903,7 +1914,7 @@ qhandle_t R_RegisterImage(const char *name, imagetype_t type, imageflags_t flags
         return 0;
     }
 
-    if (type == IT_SKIN) {
+    if (type == IT_SKIN || type == IT_SPRITE) {
         len = FS_NormalizePathBuffer(fullname, name, sizeof(fullname));
     } else if (*name == '/' || *name == '\\') {
         len = FS_NormalizePathBuffer(fullname, name + 1, sizeof(fullname));
@@ -2101,6 +2112,8 @@ void IMG_Init(void)
 #endif
     r_screenshot_template = Cvar_Get("gl_screenshot_template", "quakeXXX", 0);
 #endif // USE_PNG || USE_JPG || USE_TGA
+
+    r_glowmaps = Cvar_Get("r_glowmaps", "1", CVAR_FILES);
 
     Cmd_Register(img_cmd);
 
