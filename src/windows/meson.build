@@ -38,6 +38,7 @@ else
     depend_files:        ['res/q2proded.ico', 'res/q2proded.exe.manifest'],
     include_directories: rc_inc,
   )
+endif
 
 game_src += windows.compile_resources('res/game.rc',
   args:                rc_args,
