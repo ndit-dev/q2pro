@@ -642,22 +642,9 @@ static void CL_ParseServerData(void)
             cl.esFlags |= MSG_ES_LONGSOLID;
         }
         cl.pmp.speedmult = 2;
-    } else if (cls.serverProtocol == PROTOCOL_VERSION_Q2PRO) {
-        i = MSG_ReadWord();
-        if (!Q2PRO_SUPPORTED(i)) {
-            Com_Error(ERR_DROP,
-                      "Q2PRO server reports unsupported protocol version %d.\n"
-                      "Current client version is %d.", i, PROTOCOL_VERSION_Q2PRO_CURRENT);
-        }
-        Com_DPrintf("Using minor Q2PRO protocol version %d\n", i);
-        cls.protocolVersion = i;
-        i = MSG_ReadByte();
-        if (cls.protocolVersion >= PROTOCOL_VERSION_Q2PRO_SERVER_STATE) {
-            Com_DPrintf("Q2PRO server state %d\n", i);
-            cl.serverstate = i;
-            cinematic = i == ss_pic || i == ss_cinematic;
-        }
-        if (cls.serverProtocol == PROTOCOL_VERSION_AQTION) {
+        
+    // This check must come before any specific >= subprotocol checks
+    } else if (cls.serverProtocol == PROTOCOL_VERSION_AQTION) {
 		i = MSG_ReadShort();
 		if (!AQTION_SUPPORTED(i)) {
 			Com_Error(ERR_DROP,
@@ -695,7 +682,22 @@ static void CL_ParseServerData(void)
 		cl.pmp.speedmult = 2;
 		cl.pmp.flyhack = true; // fly hack is unconditionally enabled
 		cl.pmp.flyfriction = 4;
-    } else if (cls.protocolVersion >= PROTOCOL_VERSION_Q2PRO_EXTENDED_LIMITS) {
+    } else if (cls.serverProtocol == PROTOCOL_VERSION_Q2PRO) {
+        i = MSG_ReadWord();
+        if (!Q2PRO_SUPPORTED(i)) {
+            Com_Error(ERR_DROP,
+                      "Q2PRO server reports unsupported protocol version %d.\n"
+                      "Current client version is %d.", i, PROTOCOL_VERSION_Q2PRO_CURRENT);
+        }
+        Com_DPrintf("Using minor Q2PRO protocol version %d\n", i);
+        cls.protocolVersion = i;
+        i = MSG_ReadByte();
+        if (cls.protocolVersion >= PROTOCOL_VERSION_Q2PRO_SERVER_STATE) {
+            Com_DPrintf("Q2PRO server state %d\n", i);
+            cl.serverstate = i;
+            cinematic = i == ss_pic || i == ss_cinematic;
+        }
+        if (cls.protocolVersion >= PROTOCOL_VERSION_Q2PRO_EXTENDED_LIMITS) {
             i = MSG_ReadWord();
             if (i & Q2PRO_PF_STRAFEJUMP_HACK) {
                 Com_DPrintf("Q2PRO strafejump hack enabled\n");
