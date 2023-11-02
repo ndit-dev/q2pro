@@ -3090,11 +3090,11 @@ const char *MSG_ServerCommandString(int cmd)
         S(zdownload)
         S(gamestate)
 		S(setting)
-        S(userstatistic)
-		S(ghudupdate)
-		S(extend)
         S(configstringstream)
+        S(ghudupdate)
+		S(extend)
         S(baselinestream)
+        S(userstatistic)
 #undef S
     }
 }

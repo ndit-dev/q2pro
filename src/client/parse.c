@@ -1508,9 +1508,9 @@ void CL_ParseServerMessage(void)
 			CL_ParseDownload(cmd);
 			continue;
 
-		case svc_gamestate:
         case svc_configstringstream:
         case svc_baselinestream:
+        case svc_gamestate:
 			if (cls.serverProtocol != PROTOCOL_VERSION_Q2PRO && cls.serverProtocol != PROTOCOL_VERSION_AQTION) {
 				goto badbyte;
 			}

@@ -164,15 +164,16 @@ typedef enum {
     svc_zdownload,
     svc_gamestate, // q2pro specific, means svc_playerupdate in r1q2
     svc_setting,
-    // AQtion
-	svc_userstatistic,
-    svc_ghudupdate,
-	svc_cvarsync,
-    svc_extend,
 
     // q2pro rerelease
     svc_configstringstream,
     svc_baselinestream,
+
+    // AQtion
+    svc_ghudupdate = 29,
+    svc_extend = 30,
+    svc_userstatistic = 31,
+    svc_cvarsync = 32,
 
     svc_num_types
 } svc_ops_t;
