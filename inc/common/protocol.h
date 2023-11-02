@@ -62,7 +62,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #define PROTOCOL_VERSION_AQTION_GHUD			3012	// game dll defined hud elements
 #define PROTOCOL_VERSION_AQTION_CVARSYNC		3013
 #define PROTOCOL_VERSION_AQTION_GHUD2			3014
-#define PROTOCOL_VERSION_AQTION_CURRENT         3014
+#define PROTOCOL_VERSION_AQTION_EXTENDED_LIMITS	3015
+#define PROTOCOL_VERSION_AQTION_CURRENT         3015
 #endif
 
 
@@ -163,14 +164,15 @@ typedef enum {
     svc_zdownload,
     svc_gamestate, // q2pro specific, means svc_playerupdate in r1q2
     svc_setting,
-    svc_configstringstream,
-    svc_baselinestream,
-
     // AQtion
 	svc_userstatistic,
     svc_ghudupdate,
 	svc_cvarsync,
-    svc_extend = 30,
+    svc_extend,
+
+    // q2pro rerelease
+    svc_configstringstream,
+    svc_baselinestream,
 
     svc_num_types
 } svc_ops_t;
