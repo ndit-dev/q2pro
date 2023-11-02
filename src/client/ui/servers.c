@@ -260,8 +260,8 @@ void UI_StatusEvent(const serverStatus_t *status)
         FreeSlot(slot);
     }
 
-    #ifdef USE_AQTION
     const char *am = "No";
+    #ifdef USE_AQTION
     size_t ambci;
 
     const char *hasBotsCheck = Info_ValueForKey(status->infostring, "am");
