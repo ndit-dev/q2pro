@@ -187,7 +187,7 @@ void CL_MuzzleFlash(void)
 
     switch (mz.weapon) {
     case MZ_BLASTER:  // MK23
-        #ifdef USE_AQTION
+        #if USE_AQTION
         mk23snd = atoi(cl_mk23_sound->string);
 
         if (mk23snd > MAX_WEAPON_SOUND || mk23snd <= MIN_WEAPON_SOUND) {
@@ -206,7 +206,7 @@ void CL_MuzzleFlash(void)
         #endif
 
 	case MZ_MACHINEGUN: // MP5/10 Submachinegun
-        #ifdef USE_AQTION
+        #if USE_AQTION
 		mp5snd = atoi(cl_mp5_sound->string);
 
         if (mp5snd > MAX_WEAPON_SOUND || mp5snd <= MIN_WEAPON_SOUND) {
@@ -225,7 +225,7 @@ void CL_MuzzleFlash(void)
         #endif
 
 	case MZ_ROCKET: // M4 Assault Rifle
-        #ifdef USE_AQTION
+        #if USE_AQTION
 		m4snd = atoi(cl_m4_sound->string);
 
         if (m4snd > MAX_WEAPON_SOUND  || m4snd <= MIN_WEAPON_SOUND) {
@@ -244,7 +244,7 @@ void CL_MuzzleFlash(void)
         #endif
 
 	case MZ_SHOTGUN: // M3 Shotgun
-        #ifdef USE_AQTION
+        #if USE_AQTION
 		m3snd = atoi(cl_m3_sound->string);
 
         if (m3snd > MAX_WEAPON_SOUND  || m3snd <= MIN_WEAPON_SOUND) {
@@ -263,7 +263,7 @@ void CL_MuzzleFlash(void)
         #endif
 
 	case MZ_SSHOTGUN: // Handcannon -- needs adjustment for single barrel vs double
-        #ifdef USE_AQTION
+        #if USE_AQTION
 		hcsnd = atoi(cl_hc_sound->string);
 
         if (hcsnd > MAX_WEAPON_SOUND  || hcsnd <= MIN_WEAPON_SOUND) {
@@ -282,7 +282,7 @@ void CL_MuzzleFlash(void)
         #endif
         
 	case MZ_HYPERBLASTER: // SSG 3000 Sniper Rifle
-        #ifdef USE_AQTION
+        #if USE_AQTION
 		ssgsnd = atoi(cl_ssg_sound->string);
 
         if (ssgsnd > MAX_WEAPON_SOUND || ssgsnd <= MIN_WEAPON_SOUND) {
