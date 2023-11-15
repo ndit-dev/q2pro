@@ -19,7 +19,6 @@ env:
     -Dwerror=false
     -Daqtion-build=true
     -Ddiscord-sdk=true
-    -Davcodec=enabled 
 
   MESON_ARGS_WIN: >-
     -Dlibpng:werror=false
@@ -62,7 +61,9 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc-mingw-w64 meson nasm uuid-dev
+          sudo apt-get install -y gcc-mingw-w64 meson nasm uuid-dev \
+          libavcodec-dev libavformat-dev libavutil-dev \
+          libswresample-dev libswscale-dev \
 
       - name: Build
         run: |
@@ -132,7 +133,7 @@ jobs:
           libpng-dev libjpeg-dev zlib1g-dev mesa-common-dev \
           libcurl4-openssl-dev libx11-dev libxi-dev \
           libavcodec-dev libavformat-dev libavutil-dev \
-          libswresample-dev libswscale-dev\
+          libswresample-dev libswscale-dev \
           uuid-dev patchelf
           pip3 install meson ninja
 
