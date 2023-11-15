@@ -260,8 +260,8 @@ void UI_StatusEvent(const serverStatus_t *status)
         FreeSlot(slot);
     }
 
-    #ifdef USE_AQTION
     const char *am = "No";
+    #if USE_AQTION
     size_t ambci;
 
     const char *hasBotsCheck = Info_ValueForKey(status->infostring, "am");
@@ -312,7 +312,7 @@ void UI_StatusEvent(const serverStatus_t *status)
     if (ping > 999)
         ping = 999;
     
-    #ifdef USE_AQTION
+    #if USE_AQTION
     slot = UI_FormatColumns(SLOT_EXTRASIZE, host, am, map,
                             va("%d/%s", playerCount, maxclients),
                             va("%u", ping),

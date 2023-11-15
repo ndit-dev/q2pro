@@ -641,6 +641,46 @@ static void CL_ParseServerData(void)
             cl.esFlags |= MSG_ES_LONGSOLID;
         }
         cl.pmp.speedmult = 2;
+        
+    // This check must come before any specific >= subprotocol checks
+    } else if (cls.serverProtocol == PROTOCOL_VERSION_AQTION) {
+		i = MSG_ReadShort();
+		if (!AQTION_SUPPORTED(i)) {
+			Com_Error(ERR_DROP,
+				"AQTION server reports unsupported protocol version %d.\n"
+				"Current client version is %d.", i, PROTOCOL_VERSION_AQTION_CURRENT);
+		}
+		Com_DPrintf("Using minor AQTION protocol version %d\n", i);
+		cls.protocolVersion = i;
+		i = MSG_ReadByte();
+		Com_DPrintf("AQTION server state %d\n", i);
+		cl.serverstate = i;
+
+		i = MSG_ReadByte();
+		if (i) {
+			Com_DPrintf("AQTION strafejump hack enabled\n");
+			cl.pmp.strafehack = true;
+		}
+		i = MSG_ReadByte(); //atu QWMod
+		if (i) {
+			Com_DPrintf("AQTION QW mode enabled\n");
+			PmoveEnableQW(&cl.pmp);
+		}
+		cl.esFlags |= MSG_ES_UMASK;
+		cl.esFlags |= MSG_ES_LONGSOLID;
+		cl.esFlags |= MSG_ES_BEAMORIGIN;
+		cl.esFlags |= MSG_ES_SHORTANGLES;
+
+		// waterjump hack
+		i = MSG_ReadByte();
+		if (i) {
+			Com_DPrintf("AQTION waterjump hack enabled\n");
+			cl.pmp.waterhack = true;
+		}
+
+		cl.pmp.speedmult = 2;
+		cl.pmp.flyhack = true; // fly hack is unconditionally enabled
+		cl.pmp.flyfriction = 4;
     } else if (cls.serverProtocol == PROTOCOL_VERSION_Q2PRO) {
         i = MSG_ReadWord();
         if (!Q2PRO_SUPPORTED(i)) {
@@ -698,44 +738,6 @@ static void CL_ParseServerData(void)
         cl.pmp.speedmult = 2;
         cl.pmp.flyhack = true; // fly hack is unconditionally enabled
         cl.pmp.flyfriction = 4;
-    } else if (cls.serverProtocol == PROTOCOL_VERSION_AQTION) {
-		i = MSG_ReadShort();
-		if (!AQTION_SUPPORTED(i)) {
-			Com_Error(ERR_DROP,
-				"AQTION server reports unsupported protocol version %d.\n"
-				"Current client version is %d.", i, PROTOCOL_VERSION_AQTION_CURRENT);
-		}
-		Com_DPrintf("Using minor AQTION protocol version %d\n", i);
-		cls.protocolVersion = i;
-		i = MSG_ReadByte();
-		Com_DPrintf("AQTION server state %d\n", i);
-		cl.serverstate = i;
-
-		i = MSG_ReadByte();
-		if (i) {
-			Com_DPrintf("AQTION strafejump hack enabled\n");
-			cl.pmp.strafehack = true;
-		}
-		i = MSG_ReadByte(); //atu QWMod
-		if (i) {
-			Com_DPrintf("AQTION QW mode enabled\n");
-			PmoveEnableQW(&cl.pmp);
-		}
-		cl.esFlags |= MSG_ES_UMASK;
-		cl.esFlags |= MSG_ES_LONGSOLID;
-		cl.esFlags |= MSG_ES_BEAMORIGIN;
-		cl.esFlags |= MSG_ES_SHORTANGLES;
-
-		// waterjump hack
-		i = MSG_ReadByte();
-		if (i) {
-			Com_DPrintf("AQTION waterjump hack enabled\n");
-			cl.pmp.waterhack = true;
-		}
-
-		cl.pmp.speedmult = 2;
-		cl.pmp.flyhack = true; // fly hack is unconditionally enabled
-		cl.pmp.flyfriction = 4;
     } else {
         cls.protocolVersion = 0;
     }
@@ -1500,9 +1502,9 @@ void CL_ParseServerMessage(void)
 			CL_ParseDownload(cmd);
 			continue;
 
-		case svc_gamestate:
         case svc_configstringstream:
         case svc_baselinestream:
+        case svc_gamestate:
 			if (cls.serverProtocol != PROTOCOL_VERSION_Q2PRO && cls.serverProtocol != PROTOCOL_VERSION_AQTION) {
 				goto badbyte;
 			}

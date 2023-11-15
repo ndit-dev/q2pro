@@ -2527,7 +2527,9 @@ void MSG_ParseDeltaPlayerstate_Enhanced(const player_state_t    *from,
     }
 
     if (extraflags & EPS_M_VELOCITY2)
+    {
         to->pmove.velocity[2] = MSG_ReadShort();
+    }
 
 	if (flags & PS_M_TIME)
 	{
@@ -3088,15 +3090,11 @@ const char *MSG_ServerCommandString(int cmd)
         S(zdownload)
         S(gamestate)
 		S(setting)
-		S(reserved1)
-		S(reserved2)
-		S(reserved3)
-		S(reserved4)
-		S(ghudupdate)
-		S(extend)
-		S(userstatistic)
         S(configstringstream)
+        S(ghudupdate)
+		S(extend)
         S(baselinestream)
+        S(userstatistic)
 #undef S
     }
 }

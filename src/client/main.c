@@ -3974,7 +3974,7 @@ static void CL_InitLocal(void)
 
     cl_enhanced_footsteps= Cvar_Get("cl_enhanced_footsteps", "0", 0);
 
-#if USE_DISCORD && USE_CURL //rekkie -- discord -- s
+#if USE_DISCORD && USE_CURL && USE_AQTION //rekkie -- discord -- s
     //rekkie -- external ip -- s
     cl_extern_ip = Cvar_Get("cl_extern_ip", "", CVAR_ROM);
     CL_GetExternalIP(); // Get external IP
@@ -4070,7 +4070,7 @@ static void CL_InitLocal(void)
     info_gender = Cvar_Get("gender", "male", CVAR_USERINFO | CVAR_ARCHIVE);
     info_gender->modified = false; // clear this so we know when user sets it manually
     info_uf = Cvar_Get("uf", "", CVAR_USERINFO);
-    #if USE_CLIENT
+    #if USE_CLIENT && USE_AQTION
         info_steamid = Cvar_Get("steamid", "", CVAR_USERINFO);
         info_steamcloudappenabled = Cvar_Get("steamcloudappenabled", "", CVAR_USERINFO);
         info_steamclouduserenabled = Cvar_Get("steamclouduserenabled", "", CVAR_USERINFO);
@@ -4593,7 +4593,7 @@ bool CL_ProcessEvents(void)
 
     CL_GTV_Run();
 
-#if USE_DISCORD && USE_CURL //rekkie -- discord -- s
+#if USE_DISCORD && USE_CURL && USE_AQTION //rekkie -- discord -- s
     CL_RunDiscord();
 #endif //rekkie -- discord -- e
 
@@ -4677,7 +4677,7 @@ void CL_Shutdown(void)
 
     CL_GTV_Shutdown();
 
-#if USE_DISCORD && USE_CURL //rekkie -- discord -- s
+#if USE_DISCORD && USE_CURL && USE_AQTION //rekkie -- discord -- s
     if (discord.init)
         CL_ShutdownDiscord();
 #endif //rekkie -- discord -- e

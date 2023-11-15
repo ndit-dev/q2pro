@@ -909,6 +909,7 @@ static void SV_PacketdupHack_f(void)
 }
 #endif
 
+#if USE_AQTION
 static void SV_CvarSync_f(void)
 {
 	if (!sv_client->edict->client)
@@ -957,6 +958,7 @@ static void SV_CvarSync_f(void)
 		}
 	}
 }
+#endif
 
 static bool match_cvar_val(const char *s, const char *v)
 {
