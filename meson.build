@@ -409,21 +409,6 @@ if host_machine.system() == 'darwin'
   client_deps += opengl
 endif
 
-ogg = dependency('ogg',
-  required:        get_option('ogg'),
-  default_options: fallback_opt,
-)
-vorbisfile = dependency('vorbisfile',
-  required:        get_option('ogg'),
-  default_options: fallback_opt,
-)
-if ogg.found() and vorbisfile.found()
-  client_src += 'src/client/sound/ogg.c'
-  client_deps += ogg.partial_dependency(compile_args: true, includes: true)
-  client_deps += vorbisfile
-  config.set10('USE_OGG', true)
-endif
-
 # require FFmpeg >= 5.1.3
 avcodec_opt = get_option('avcodec')
 avcodec = dependency('libavcodec', version: '>= 59.37.100', required: avcodec_opt)
@@ -432,7 +417,7 @@ avutil = dependency('libavutil', version: '>= 57.28.100', required: avcodec_opt)
 swresample = dependency('libswresample', version: '>= 4.7.100', required: avcodec_opt)
 swscale = dependency('libswscale', version: '>= 6.7.100', required: avcodec_opt)
 if avcodec.found() and avformat.found() and avutil.found() and swresample.found() and swscale.found()
-  client_src += 'src/client/ffcin.c'
+  client_src += ['src/client/ffcin.c', 'src/client/sound/ogg.c']
   client_deps += [avcodec, avformat, avutil, swresample, swscale]
   config.set10('USE_AVCODEC', true)
 else
@@ -616,7 +601,6 @@ summary({
   'md5'                : config.get('USE_MD5', 0) != 0,
   'mvd-client'         : config.get('USE_MVD_CLIENT', 0) != 0,
   'mvd-server'         : config.get('USE_MVD_SERVER', 0) != 0,
-  'ogg'                : config.get('USE_OGG', 0) != 0,
   'openal'             : config.get('USE_OPENAL', 0) != 0,
   'packetdup-hack'     : config.get('USE_PACKETDUP', 0) != 0,
   'save-games'         : config.get('USE_SAVEGAMES', 0) != 0,
