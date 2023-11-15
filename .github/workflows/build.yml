@@ -25,7 +25,6 @@ env:
   MESON_ARGS_WIN: >-
     -Dlibpng:werror=false
     -Dsdl2=disabled
-    -Dvorbis:werror=false
     -Dwayland=disabled
     -Dwrap_mode=forcefallback
     -Dx11=disabled
