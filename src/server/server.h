@@ -678,6 +678,7 @@ void SV_MvdStartSound(int entnum, int channel, int flags,
 
 void SV_MvdRecord_f(void);
 void SV_MvdStop_f(void);
+void SV_ListSounds_f(void);
 #else
 #define SV_MvdRegister()            (void)0
 #define SV_MvdPreInit()             (void)0

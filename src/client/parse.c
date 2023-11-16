@@ -1412,7 +1412,10 @@ void CL_ParseServerMessage(void)
 		switch (cmd) {
 		default:
 		badbyte:
-			Com_Error(ERR_DROP, "%s: illegible server message: %d", __func__, cmd);
+            Com_Error(ERR_DROP, "%s: illegible server message: %d", __func__, cmd);
+            #if USE_AQTION
+            Com_Printf("Please update your AQtion client to the latest version in Steam\n");
+            #endif
 			break;
 
 		case svc_nop:
