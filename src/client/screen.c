@@ -1701,11 +1701,11 @@ static void SCR_ExecuteLayoutString(const char *s)
             token = COM_Parse(&s);
             value = atoi(token);
             if (value < 0 || value >= MAX_STATS) {
-                Com_Error(ERR_DROP, "%s: invalid stat index", __func__);
+                Com_Error(ERR_DROP, "%s: invalid stat index for pic: %i", __func__, value);
             }
             value = cl.frame.ps.stats[value];
             if (value < 0 || value >= cl.csr.max_images) {
-                Com_Error(ERR_DROP, "%s: invalid pic index", __func__);
+                Com_Error(ERR_DROP, "%s: invalid pic index for pic: %i", __func__, value);
             }
             token = cl.configstrings[cl.csr.images + value];
             if (token[0]) {
@@ -1816,7 +1816,7 @@ static void SCR_ExecuteLayoutString(const char *s)
             token = COM_Parse(&s);
             value = atoi(token);
             if (value < 0 || value >= MAX_STATS) {
-                Com_Error(ERR_DROP, "%s: invalid stat index", __func__);
+                Com_Error(ERR_DROP, "%s: invalid stat index for num: %i", __func__, value);
             }
             value = cl.frame.ps.stats[value];
             HUD_DrawNumber(x, y, 0, width, value);
@@ -1886,11 +1886,11 @@ static void SCR_ExecuteLayoutString(const char *s)
             token = COM_Parse(&s);
             index = atoi(token);
             if (index < 0 || index >= MAX_STATS) {
-                Com_Error(ERR_DROP, "%s: invalid stat index", __func__);
+                Com_Error(ERR_DROP, "%s: invalid stat index for stat_: %i", __func__, index);
             }
             index = cl.frame.ps.stats[index];
             if (index < 0 || index >= cl.csr.end) {
-                Com_Error(ERR_DROP, "%s: invalid string index", __func__);
+                Com_Error(ERR_DROP, "%s: invalid string index for stat_: %i", __func__, index);
             }
             token = cl.configstrings[index];
             if (!strcmp(cmd, "string"))
@@ -1948,7 +1948,7 @@ static void SCR_ExecuteLayoutString(const char *s)
             token = COM_Parse(&s);
             value = atoi(token);
             if (value < 0 || value >= MAX_STATS) {
-                Com_Error(ERR_DROP, "%s: invalid stat index", __func__);
+                Com_Error(ERR_DROP, "%s: invalid stat index for if: %i", __func__, value);
             }
             value = cl.frame.ps.stats[value];
             if (!value) {   // skip to endif
