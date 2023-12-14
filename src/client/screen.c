@@ -59,6 +59,7 @@ static struct {
 	int			hud_x, hud_y;
     int         hud_width, hud_height;
     float       hud_scale;
+    int         lag_draw_scale;
 } scr;
 
 static cvar_t   *scr_viewsize;
@@ -76,6 +77,7 @@ static cvar_t   *scr_lag_y;
 static cvar_t   *scr_lag_draw;
 static cvar_t   *scr_lag_min;
 static cvar_t   *scr_lag_max;
+static cvar_t   *scr_lag_draw_scale;
 static cvar_t   *scr_alpha;
 
 static cvar_t   *scr_hudborder_x;
@@ -469,8 +471,15 @@ LAGOMETER
 ===============================================================================
 */
 
-#define LAG_WIDTH   48
-#define LAG_HEIGHT  48
+#define LAG_WIDTH 48
+#define LAG_HEIGHT 48
+int DRAW_LAG_WIDTH;
+int DRAW_LAG_HEIGHT;
+// Scaling support for lag graph
+void init_lag_graph_dimensions(void) {
+    DRAW_LAG_WIDTH = LAG_WIDTH * scr_lag_draw_scale->integer;
+    DRAW_LAG_HEIGHT = LAG_HEIGHT * scr_lag_draw_scale->integer;
+}
 
 #define LAG_WARN_BIT    BIT(30)
 #define LAG_CRIT_BIT    BIT(31)
@@ -524,13 +533,13 @@ static void SCR_LagDraw(int x, int y)
     if (v_range < 1)
         return;
 
-    for (i = 0; i < LAG_WIDTH; i++) {
+    for (i = 0; i < DRAW_LAG_WIDTH; i++) {
         j = lag.head - i - 1;
         if (j < 0) {
             break;
         }
 
-        v = lag.samples[j % LAG_WIDTH];
+        v = lag.samples[j % DRAW_LAG_WIDTH];
 
         if (v & LAG_CRIT_BIT) {
             c = LAG_CRIT;
@@ -541,10 +550,10 @@ static void SCR_LagDraw(int x, int y)
         }
 
         v &= ~(LAG_WARN_BIT | LAG_CRIT_BIT);
-        v = (v - v_min) * LAG_HEIGHT / v_range;
-        clamp(v, 0, LAG_HEIGHT);
+        v = (v - v_min) * DRAW_LAG_HEIGHT / v_range;
+        clamp(v, 0, DRAW_LAG_HEIGHT);
 
-        R_DrawFill8(x + LAG_WIDTH - i - 1, y + LAG_HEIGHT - v, 1, v, c);
+        R_DrawFill8(x + DRAW_LAG_WIDTH - i - 1, y + DRAW_LAG_HEIGHT - v, 1, v, c);
     }
 }
 
@@ -553,17 +562,19 @@ static void SCR_DrawNet(void)
     int x = scr_lag_x->integer + scr.hud_x;
     int y = scr_lag_y->integer + scr.hud_y;
 
+    init_lag_graph_dimensions();
+
     if (scr_lag_x->integer < 0) {
-        x += scr.hud_width - LAG_WIDTH + 1;
+        x += scr.hud_width - DRAW_LAG_WIDTH + 1;
     }
     if (scr_lag_y->integer < 0) {
-        y += scr.hud_height - LAG_HEIGHT + 1;
+        y += scr.hud_height - DRAW_LAG_HEIGHT + 1;
     }
 
     // draw ping graph
     if (scr_lag_draw->integer) {
         if (scr_lag_draw->integer > 1) {
-            R_DrawFill8(x, y, LAG_WIDTH, LAG_HEIGHT, 4);
+            R_DrawFill8(x, y, DRAW_LAG_WIDTH, DRAW_LAG_HEIGHT, 4);
         }
         SCR_LagDraw(x, y);
     }
@@ -571,7 +582,7 @@ static void SCR_DrawNet(void)
     // draw phone jack
     if (cls.netchan.outgoing_sequence - cls.netchan.incoming_acknowledged >= CMD_BACKUP) {
         if ((cls.realtime >> 8) & 3) {
-            R_DrawStretchPic(x, y, LAG_WIDTH, LAG_HEIGHT, scr.net_pic);
+            R_DrawStretchPic(x, y, DRAW_LAG_WIDTH, DRAW_LAG_HEIGHT, scr.net_pic);
         }
     }
 }
@@ -1266,6 +1277,13 @@ static void scr_scale_changed(cvar_t *self)
 
     scr_crosshair_changed(scr_crosshair);
 }
+static void scr_lag_draw_scale_changed(cvar_t *self)
+{
+    scr.lag_draw_scale = R_ClampScale(self);
+
+    DRAW_LAG_WIDTH = LAG_WIDTH * scr_lag_draw_scale->value;
+    DRAW_LAG_HEIGHT = LAG_HEIGHT * scr_lag_draw_scale->value;
+}
 
 static const cmdreg_t scr_cmds[] = {
     { "timerefresh", SCR_TimeRefresh_f },
@@ -1303,6 +1321,9 @@ void SCR_Init(void)
     scr_chathud_time->changed(scr_chathud_time);
     scr_chathud_x = Cvar_Get("scr_chathud_x", "8", 0);
     scr_chathud_y = Cvar_Get("scr_chathud_y", "-64", 0);
+
+    scr_lag_draw_scale = Cvar_Get("scr_lag_draw_scale", "1", 0);
+    scr_lag_draw_scale->changed = scr_lag_draw_scale_changed;
 
     xhair_dot = Cvar_Get("xhair_dot", "1",0);
     xhair_length = Cvar_Get("xhair_length","4",0);
@@ -1355,6 +1376,7 @@ void SCR_Init(void)
 
     scr_scale_changed(scr_scale);
     scr_crosshair_changed(scr_crosshair);
+    scr_lag_draw_scale_changed(scr_lag_draw_scale);
 
     scr.initialized = true;
 }
