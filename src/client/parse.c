@@ -1406,6 +1406,9 @@ void CL_ParseServerMessage(void)
         extrabits = cmd >> SVCMD_BITS;
         cmd &= SVCMD_MASK;
 
+        if (cmd == svc_extend)
+			cmd = MSG_ReadByte();
+
         SHOWNET(1, "%3u:%s\n", msg_read.readcount - 1, MSG_ServerCommandString(cmd));
 
         // other commands
