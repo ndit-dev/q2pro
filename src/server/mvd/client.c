@@ -60,7 +60,7 @@ typedef struct gtv_s {
     netstream_t stream;
     char        address[MAX_QPATH];
     byte        *data;
-    size_t      msglen;
+    unsigned    msglen;
     unsigned    flags;
 #if USE_ZLIB
     bool        z_act; // true when actively inflating
@@ -557,7 +557,7 @@ static void demo_emit_snapshot(mvd_t *mvd)
     int64_t pos;
     char *from, *to;
     size_t len;
-    int i, bits;
+    int i;
 
     if (mvd_snaps->integer <= 0)
         return;
@@ -610,8 +610,7 @@ static void demo_emit_snapshot(mvd_t *mvd)
         for (cs = player->configstrings; cs; cs = cs->next)
             len += 4 + strlen(cs->string);
 
-        bits = (len >> 8) & 7;
-        MSG_WriteByte(mvd_unicast | (bits << SVCMD_BITS));
+        MSG_WriteByte(mvd_unicast | (len >> 8 << SVCMD_BITS));
         MSG_WriteByte(len & 255);
         MSG_WriteByte(i);
         for (cs = player->configstrings; cs; cs = cs->next) {
@@ -624,8 +623,7 @@ static void demo_emit_snapshot(mvd_t *mvd)
     // write layout
     if (mvd->clientNum != -1) {
         len = 2 + strlen(mvd->layout);
-        bits = (len >> 8) & 7;
-        MSG_WriteByte(mvd_unicast | (bits << SVCMD_BITS));
+        MSG_WriteByte(mvd_unicast | (len >> 8 << SVCMD_BITS));
         MSG_WriteByte(len & 255);
         MSG_WriteByte(mvd->clientNum);
         MSG_WriteByte(svc_layout);
@@ -644,7 +642,7 @@ static void demo_emit_snapshot(mvd_t *mvd)
         mvd->snapshots = Z_Realloc(mvd->snapshots, sizeof(snap) * ALIGN(mvd->numsnapshots + 1, MIN_SNAPSHOTS));
     mvd->snapshots[mvd->numsnapshots++] = snap;
 
-    Com_DPrintf("[%d] snaplen %zu\n", mvd->framenum, msg_write.cursize);
+    Com_DPrintf("[%d] snaplen %u\n", mvd->framenum, msg_write.cursize);
 
     SZ_Clear(&msg_write);
 

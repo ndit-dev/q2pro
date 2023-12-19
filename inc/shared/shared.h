@@ -239,10 +239,16 @@ q_noreturn q_printf(2, 3);
     do { if (!(expr)) Com_Error(ERR_FATAL, "%s: assertion `%s' failed", __func__, #expr); } while (0)
 
 // game print flags
-#define PRINT_LOW           0       // pickup messages
-#define PRINT_MEDIUM        1       // death messages
-#define PRINT_HIGH          2       // critical messages
-#define PRINT_CHAT          3       // chat messages    
+enum {
+    PRINT_LOW,          // pickup messages
+    PRINT_MEDIUM,       // death messages
+    PRINT_HIGH,         // critical messages
+    PRINT_CHAT,         // chat messages
+// KEX
+    PRINT_TYPEWRITER,
+    PRINT_CENTER,
+// KEX
+};
 
 // destination class for gi.multicast()
 typedef enum {
@@ -1110,10 +1116,14 @@ enum {
     MZ_BLUEHYPERBLASTER,
     MZ_PHALANX,
 
+// KEX
+    MZ_BFG2,
+    MZ_PHALANX2,
+
 //ROGUE
     MZ_ETF_RIFLE = 30,
-    MZ_UNUSED,
-    MZ_SHOTGUN2,
+    MZ_PROX,        // KEX
+    MZ_SHOTGUN2,    // MZ_ETF_RIFLE_2 in KEX
     MZ_HEATBEAM,
     MZ_BLASTER2,
     MZ_TRACKER,
