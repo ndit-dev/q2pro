@@ -164,7 +164,6 @@ void CL_MuzzleFlash(void)
     centity_t   *pl;
     float       volume;
     char        soundname[MAX_QPATH];
-    int         mk23snd,mp5snd,m4snd,m3snd,hcsnd,ssgsnd;
 
 #if USE_DEBUG
     if (developer->integer)
@@ -190,17 +189,18 @@ void CL_MuzzleFlash(void)
         #if USE_AQTION
         // New muzzleflash items to test:
         // example: CL_AddWeaponMuzzleFX(MFLASH_BLAST, (const vec3_t) { 27.0f, 7.4f, -6.6f }, 8.0f);
-        mk23snd = atoi(cl_mk23_sound->string);
+        //mk23snd = atoi(cl_mk23_sound->string);
+        //CL_AddWeaponMuzzleFX(MFLASH_BLAST, (const vec3_t) { 27.0f, 7.4f, -6.6f }, 8.0f);
 
-        if (mk23snd > MAX_WEAPON_SOUND || mk23snd <= MIN_WEAPON_SOUND) {
-            mk23snd = MIN_WEAPON_SOUND;
+        if (cl_mk23_sound->integer > MAX_WEAPON_SOUND || cl_mk23_sound->integer <= MIN_WEAPON_SOUND) {
+            cl_mk23_sound->integer = MIN_WEAPON_SOUND;
         }
 
-        if (mk23snd == 0) {
+        if (cl_mk23_sound->integer == 0) {
             Q_snprintf(soundname, sizeof(soundname), "weapons/mk23fire.wav");
             break;
         } else {
-            Q_snprintf(soundname, sizeof(soundname), "weapons/mk23fire%i.wav", mk23snd);
+            Q_snprintf(soundname, sizeof(soundname), "weapons/mk23fire%i.wav", cl_mk23_sound->integer);
             break;
         }
         #else
@@ -209,17 +209,15 @@ void CL_MuzzleFlash(void)
 
 	case MZ_MACHINEGUN: // MP5/10 Submachinegun
         #if USE_AQTION
-		mp5snd = atoi(cl_mp5_sound->string);
-
-        if (mp5snd > MAX_WEAPON_SOUND || mp5snd <= MIN_WEAPON_SOUND) {
-            mp5snd = MIN_WEAPON_SOUND;
+        if (cl_mp5_sound->integer > MAX_WEAPON_SOUND || cl_mp5_sound->integer <= MIN_WEAPON_SOUND) {
+            cl_mp5_sound->integer = MIN_WEAPON_SOUND;
         }
 
-        if (mp5snd == 0) {
+        if (cl_mp5_sound->integer == 0) {
             Q_snprintf(soundname, sizeof(soundname), "weapons/mp5fire.wav");
             break;
         } else {
-            Q_snprintf(soundname, sizeof(soundname), "weapons/mp5fire%i.wav", mp5snd);
+            Q_snprintf(soundname, sizeof(soundname), "weapons/mp5fire%i.wav", cl_mp5_sound->integer);
             break;
         }
         #else
@@ -228,17 +226,15 @@ void CL_MuzzleFlash(void)
 
 	case MZ_ROCKET: // M4 Assault Rifle
         #if USE_AQTION
-		m4snd = atoi(cl_m4_sound->string);
-
-        if (m4snd > MAX_WEAPON_SOUND  || m4snd <= MIN_WEAPON_SOUND) {
-            m4snd = MIN_WEAPON_SOUND;
+        if (cl_m4_sound->integer > MAX_WEAPON_SOUND  || cl_m4_sound->integer <= MIN_WEAPON_SOUND) {
+            cl_m4_sound->integer = MIN_WEAPON_SOUND;
         }
 
-        if (m4snd == 0) {
+        if (cl_m4_sound->integer == 0) {
             Q_snprintf(soundname, sizeof(soundname), "weapons/m4a1fire.wav");
             break;
         } else {
-            Q_snprintf(soundname, sizeof(soundname), "weapons/m4a1fire%i.wav", m4snd);
+            Q_snprintf(soundname, sizeof(soundname), "weapons/m4a1fire%i.wav", cl_m4_sound->integer);
             break;
         }
         #else
@@ -247,17 +243,15 @@ void CL_MuzzleFlash(void)
 
 	case MZ_SHOTGUN: // M3 Shotgun
         #if USE_AQTION
-		m3snd = atoi(cl_m3_sound->string);
-
-        if (m3snd > MAX_WEAPON_SOUND  || m3snd <= MIN_WEAPON_SOUND) {
-            m3snd = MIN_WEAPON_SOUND;
+        if (cl_m3_sound->integer > MAX_WEAPON_SOUND  || cl_m3_sound->integer <= MIN_WEAPON_SOUND) {
+            cl_m3_sound->integer = MIN_WEAPON_SOUND;
         }
 
-        if (m3snd == 0) {
+        if (cl_m3_sound->integer == 0) {
             Q_snprintf(soundname, sizeof(soundname), "weapons/shotgf1b.wav");
             break;
         } else {
-            Q_snprintf(soundname, sizeof(soundname), "weapons/shotgf1b%i.wav", m3snd);
+            Q_snprintf(soundname, sizeof(soundname), "weapons/shotgf1b%i.wav", cl_m3_sound->integer);
             break;
         }
         #else
@@ -266,17 +260,15 @@ void CL_MuzzleFlash(void)
 
 	case MZ_SSHOTGUN: // Handcannon -- needs adjustment for single barrel vs double
         #if USE_AQTION
-		hcsnd = atoi(cl_hc_sound->string);
-
-        if (hcsnd > MAX_WEAPON_SOUND  || hcsnd <= MIN_WEAPON_SOUND) {
-            hcsnd = MIN_WEAPON_SOUND;
+        if (cl_hc_sound->integer > MAX_WEAPON_SOUND  || cl_hc_sound->integer <= MIN_WEAPON_SOUND) {
+            cl_hc_sound->integer = MIN_WEAPON_SOUND;
         }
 
-        if (hcsnd == 0) {
+        if (cl_hc_sound->integer == 0) {
             Q_snprintf(soundname, sizeof(soundname), "weapons/cannon_fire.wav");
             break;
         } else {
-            Q_snprintf(soundname, sizeof(soundname), "weapons/cannon_fire%i.wav", hcsnd);
+            Q_snprintf(soundname, sizeof(soundname), "weapons/cannon_fire%i.wav", cl_hc_sound->integer);
             break;
         }
         #else
@@ -285,17 +277,15 @@ void CL_MuzzleFlash(void)
         
 	case MZ_HYPERBLASTER: // SSG 3000 Sniper Rifle
         #if USE_AQTION
-		ssgsnd = atoi(cl_ssg_sound->string);
-
-        if (ssgsnd > MAX_WEAPON_SOUND || ssgsnd <= MIN_WEAPON_SOUND) {
-            ssgsnd = MIN_WEAPON_SOUND;
+        if (cl_ssg_sound->integer > MAX_WEAPON_SOUND || cl_ssg_sound->integer <= MIN_WEAPON_SOUND) {
+            cl_ssg_sound->integer = MIN_WEAPON_SOUND;
         }
 
-        if (ssgsnd == 0) {
+        if (cl_ssg_sound->integer == 0) {
             Q_snprintf(soundname, sizeof(soundname), "weapons/ssgfire.wav");
             break;
         } else {
-            Q_snprintf(soundname, sizeof(soundname), "weapons/ssgfire%i.wav", ssgsnd);
+            Q_snprintf(soundname, sizeof(soundname), "weapons/ssgfire%i.wav", cl_ssg_sound->integer);
             break;
         }
         #else
