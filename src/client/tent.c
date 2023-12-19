@@ -52,7 +52,11 @@ qhandle_t   cl_mod_lightning;
 qhandle_t   cl_mod_heatbeam;
 qhandle_t   cl_mod_explo4_big;
 
+qhandle_t   cl_mod_muzzles[MFLASH_TOTAL];
+
 qhandle_t   cl_img_flare;
+
+static cvar_t   *cl_muzzleflashes;
 
 #define MAX_FOOTSTEP_SFX    9
 
@@ -79,6 +83,10 @@ static int CL_FindFootstepSurface(int entnum)
 
     // skip if no materials loaded
     if (cl_num_footsteps <= FOOTSTEP_RESERVED_COUNT)
+        return footstep_id;
+
+    // allow custom footsteps to be disabled
+    if (cl_footsteps->integer >= 2)
         return footstep_id;
 
     // use an X/Y only mins/maxs copy of the entity,
@@ -307,6 +315,19 @@ void CL_RegisterTEntModels(void)
     cl_mod_heatbeam = R_RegisterModel("models/proj/beam/tris.md2");
     cl_mod_explo4_big = R_RegisterModel("models/objects/r_explode2/tris.md2");
 
+    cl_mod_muzzles[MFLASH_MACHN] = R_RegisterModel("models/weapons/v_machn/flash/tris.md2");
+    cl_mod_muzzles[MFLASH_SHOTG2] = R_RegisterModel("models/weapons/v_shotg2/flash/tris.md2");
+    cl_mod_muzzles[MFLASH_SHOTG] = R_RegisterModel("models/weapons/v_shotg/flash/tris.md2");
+    cl_mod_muzzles[MFLASH_ROCKET] = R_RegisterModel("models/weapons/v_rocket/flash/tris.md2");
+    cl_mod_muzzles[MFLASH_RAIL] = R_RegisterModel("models/weapons/v_rail/flash/tris.md2");
+    cl_mod_muzzles[MFLASH_LAUNCH] = R_RegisterModel("models/weapons/v_launch/flash/tris.md2");
+    cl_mod_muzzles[MFLASH_ETF_RIFLE] = R_RegisterModel("models/weapons/v_etf_rifle/flash/tris.md2");
+    cl_mod_muzzles[MFLASH_DIST] = R_RegisterModel("models/weapons/v_dist/flash/tris.md2");
+    cl_mod_muzzles[MFLASH_BOOMER] = R_RegisterModel("models/weapons/v_boomer/flash/tris.md2");
+    cl_mod_muzzles[MFLASH_BLAST] = R_RegisterModel("models/weapons/v_blast/flash/tris.md2");
+    cl_mod_muzzles[MFLASH_BFG] = R_RegisterModel("models/weapons/v_bfg/flash/tris.md2");
+    cl_mod_muzzles[MFLASH_BEAMER] = R_RegisterModel("models/weapons/v_beamer/flash/tris.md2");
+
     cl_img_flare = R_RegisterSprite("misc/flare.tga");
 
     // check for remaster powerscreen model (ugly!)
@@ -328,7 +349,6 @@ EXPLOSION MANAGEMENT
 typedef struct {
     enum {
         ex_free,
-        ex_explosion,
         ex_misc,
         ex_flash,
         ex_mflash,
@@ -414,6 +434,54 @@ static void CL_BFGExplosion(const vec3_t pos)
     ex->frames = 4;
 }
 
+void CL_AddWeaponMuzzleFX(cl_muzzlefx_t fx, const vec3_t offset, float scale)
+{
+    if (!cl_muzzleflashes->integer)
+        return;
+    if (mz.entity != cl.frame.clientNum + 1)
+        return;
+
+    Q_assert(fx < q_countof(cl_mod_muzzles));
+
+    if (!cl_mod_muzzles[fx])
+        return;
+
+    cl.weapon.muzzle.model = cl_mod_muzzles[fx];
+    cl.weapon.muzzle.scale = scale;
+    if (fx == MFLASH_MACHN || fx == MFLASH_BEAMER)
+        cl.weapon.muzzle.roll = Q_rand() % 360;
+    else
+        cl.weapon.muzzle.roll = 0;
+    VectorCopy(offset, cl.weapon.muzzle.offset);
+    cl.weapon.muzzle.time = cl.servertime - CL_FRAMETIME;
+}
+
+void CL_AddMuzzleFX(const vec3_t origin, const vec3_t angles, cl_muzzlefx_t fx, int skin, float scale)
+{
+    explosion_t *ex;
+
+    if (!cl_muzzleflashes->integer)
+        return;
+
+    Q_assert(fx < q_countof(cl_mod_muzzles));
+
+    if (!cl_mod_muzzles[fx])
+        return;
+
+    ex = CL_AllocExplosion();
+    VectorCopy(origin, ex->ent.origin);
+    VectorCopy(angles, ex->ent.angles);
+    ex->type = ex_mflash;
+    ex->ent.flags = RF_TRANSLUCENT | RF_NOSHADOW | RF_FULLBRIGHT;
+    ex->ent.alpha = 1.0f;
+    ex->start = cl.servertime - CL_FRAMETIME;
+    ex->ent.model = cl_mod_muzzles[fx];
+    ex->ent.skinnum = skin;
+    ex->ent.scale = scale;
+    if (fx != MFLASH_BOOMER)
+        ex->ent.angles[2] = Q_rand() % 360;
+}
+
 /*
 =================
 CL_SmokeAndFlash
@@ -451,16 +519,21 @@ static void CL_AddExplosions(void)
     for (i = 0, ex = cl_explosions; i < MAX_EXPLOSIONS; i++, ex++) {
         if (ex->type == ex_free)
             continue;
+
+        if (ex->type == ex_mflash) {
+            if (cl.time - ex->start > 50)
+                ex->type = ex_free;
+            else
+                V_AddEntity(&ex->ent);
+            continue;
+        }
+
         frac = (cl.time - ex->start) * BASE_1_FRAMETIME;
         f = floor(frac);
 
         ent = &ex->ent;
 
         switch (ex->type) {
-        case ex_mflash:
-            if (f >= ex->frames - 1)
-                ex->type = ex_free;
-            break;
         case ex_misc:
         case ex_light:
             if (f >= ex->frames - 1) {
@@ -507,7 +580,7 @@ static void CL_AddExplosions(void)
             ent->flags |= RF_TRANSLUCENT;
             break;
         default:
-            break;
+            Q_assert(!"bad type");
         }
 
         if (ex->type == ex_free)
@@ -1582,6 +1655,7 @@ void CL_ClearTEnts(void)
 
 void CL_InitTEnts(void)
 {
+    cl_muzzleflashes = Cvar_Get("cl_muzzleflashes", "1", 0);
     cl_railtrail_type = Cvar_Get("cl_railtrail_type", "0", 0);
     cl_railtrail_time = Cvar_Get("cl_railtrail_time", "1.0", 0);
     cl_railtrail_time->changed = cl_timeout_changed;

@@ -160,9 +160,11 @@ static void parse_entity_update(const centity_state_t *state)
             MSG_UnpackSolid32_Ver1(state->solid, ent->mins, ent->maxs);
         else
             MSG_UnpackSolid16(state->solid, ent->mins, ent->maxs);
+        ent->radius = Distance(ent->maxs, ent->mins) * 0.5f;
     } else {
         VectorClear(ent->mins);
         VectorClear(ent->maxs);
+        ent->radius = 0;
     }
 
     // work around Q2PRO server bandwidth optimization
@@ -935,14 +937,13 @@ static void CL_AddPacketEntities(void)
 
             // remaster powerscreen is tiny and needs scaling
             if (cl.need_powerscreen_scale) {
-                vec3_t forward, mid, size, tmp;
+                vec3_t forward, mid, tmp;
                 VectorCopy(ent.origin, tmp);
-                VectorSubtract(cent->maxs, cent->mins, size);
                 VectorAvg(cent->mins, cent->maxs, mid);
                 VectorAdd(ent.origin, mid, ent.origin);
                 AngleVectors(ent.angles, forward, NULL, NULL);
-                VectorMA(ent.origin, size[1] * 0.5f, forward, ent.origin);
-                ent.scale = VectorLength(size) * 0.4f;
+                VectorMA(ent.origin, cent->maxs[0], forward, ent.origin);
+                ent.scale = cent->radius * 0.8f;
                 ent.flags |= RF_FULLBRIGHT;
                 V_AddEntity(&ent);
                 VectorCopy(tmp, ent.origin);
@@ -1014,7 +1015,7 @@ static void CL_AddPacketEntities(void)
                 float intensity = 50 + (500 * (sin(cl.time / 500.0f) + 1.0f));
                 V_AddLight(ent.origin, intensity, -1.0f, -1.0f, -1.0f);
             } else {
-                CL_Tracker_Shell(cent->lerp_origin);
+                CL_Tracker_Shell(cent, ent.origin);
                 V_AddLight(ent.origin, 155, -1.0f, -1.0f, -1.0f);
             }
         } else if (effects & EF_TRACKER) {
@@ -1143,6 +1144,35 @@ static void CL_AddViewWeapon(void)
         gun.flags |= flags | RF_TRANSLUCENT;
         V_AddEntity(&gun);
     }
+
+    // add muzzle flash
+    if (!cl.weapon.muzzle.model)
+        return;
+
+    if (cl.time - cl.weapon.muzzle.time > 50) {
+        cl.weapon.muzzle.model = 0;
+        return;
+    }
+
+    gun.flags = RF_FULLBRIGHT | RF_DEPTHHACK | RF_WEAPONMODEL | RF_TRANSLUCENT;
+    gun.alpha = 1.0f;
+    gun.model = cl.weapon.muzzle.model;
+    gun.skinnum = 0;
+    gun.scale = cl.weapon.muzzle.scale;
+    gun.backlerp = 0.0f;
+    gun.frame = gun.oldframe = 0;
+
+    vec3_t forward, right, up;
+    AngleVectors(gun.angles, forward, right, up);
+
+    VectorMA(gun.origin, cl.weapon.muzzle.offset[0], forward, gun.origin);
+    VectorMA(gun.origin, cl.weapon.muzzle.offset[1], right, gun.origin);
+    VectorMA(gun.origin, cl.weapon.muzzle.offset[2], up, gun.origin);
+
+    VectorCopy(cl.refdef.viewangles, gun.angles);
+    gun.angles[2] += cl.weapon.muzzle.roll;
+
+    V_AddEntity(&gun);
 }
 
 static void CL_SetupFirstPersonView(void)

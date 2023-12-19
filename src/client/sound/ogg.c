@@ -527,7 +527,7 @@ bool OGG_Load(sizebuf_t *sz)
         goto fail;
     }
 
-    if (st->duration < 1 || st->duration > MAX_LOADFILE >> st->codecpar->ch_layout.nb_channels) {
+    if (st->duration < 1 || st->duration > MAX_SFX_SAMPLES) {
         Com_DPrintf("%s has bad number of samples\n", s_info.name);
         goto fail;
     }
@@ -584,10 +584,7 @@ bool OGG_Load(sizebuf_t *sz)
 
     if (out->sample_rate != dec_ctx->sample_rate) {
         nb_samples = av_rescale_rnd(st->duration + 2, out->sample_rate, dec_ctx->sample_rate, AV_ROUND_UP) + 2;
-        if (nb_samples > MAX_LOADFILE >> out->ch_layout.nb_channels) {
-            Com_DPrintf("Too many samples after resampling\n");
-            goto fail;
-        }
+        Q_assert(nb_samples <= INT_MAX >> out->ch_layout.nb_channels);
     }
 
     int bufsize = nb_samples << out->ch_layout.nb_channels;
@@ -628,8 +625,8 @@ bool OGG_Load(sizebuf_t *sz)
 
         int size = out->nb_samples << out->ch_layout.nb_channels;
         if (size > bufsize - offset) {
-            ret = AVERROR(ENOSPC);
-            break;
+            size = bufsize - offset;
+            eof = true;
         }
 
         memcpy(s_info.data + offset, out->data[0], size);
@@ -694,12 +691,12 @@ static void OGG_Play_f(void)
 
 static void OGG_Info_f(void)
 {
-    AVFrame *out = ogg.frame_out;
+    AVCodecContext *dec = ogg.dec_ctx;
 
-    if (out) {
+    if (dec) {
         Com_Printf("Playing %s, %s, %d Hz, %d ch\n",
-                   ogg.fmt_ctx->url, ogg.dec_ctx->codec->name,
-                   out->sample_rate, out->ch_layout.nb_channels);
+                   COM_SkipPath(ogg.fmt_ctx->url), dec->codec->name,
+                   dec->sample_rate, dec->ch_layout.nb_channels);
     } else {
         Com_Printf("Playback stopped.\n");
     }
