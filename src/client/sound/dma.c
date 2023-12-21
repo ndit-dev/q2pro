@@ -72,13 +72,15 @@ static sfxcache_t *DMA_UploadSfx(sfx_t *sfx)
     sc->channels = s_info.channels;
     sc->size = size;
 
+    Q_assert(stepscale == 1 || s_info.samples <= MAX_SFX_SAMPLES);
+
 // resample / decimate to the current source rate
     if (stepscale == 1) // fast special case
         memcpy(sc->data, s_info.data, size);
     else if (sc->width == 1 && sc->channels == 1)
         RESAMPLE sc->data[i] = s_info.data[j];
     else if (sc->width == 2 && sc->channels == 2)
-        RESAMPLE WL32(sc->data + i * 4, RL32(s_info.data + j * 4));
+        RESAMPLE memcpy(sc->data + i * 4, s_info.data + j * 4, 4);
     else
         RESAMPLE ((uint16_t *)sc->data)[i] = ((uint16_t *)s_info.data)[j];
 

@@ -335,7 +335,7 @@ static void CL_ParseFrame(int extrabits)
         }
     }
 
-    SHOWNET(2, "%3zu:playerinfo\n", msg_read.readcount - 1);
+    SHOWNET(2, "%3u:playerinfo\n", msg_read.readcount - 1);
 
     // parse playerstate
 	bits = MSG_ReadWord();
@@ -399,7 +399,7 @@ static void CL_ParseFrame(int extrabits)
         }
     }
 
-    SHOWNET(2, "%3zu:packetentities\n", msg_read.readcount - 1);
+    SHOWNET(2, "%3u:packetentities\n", msg_read.readcount - 1);
 
     CL_ParsePacketEntities(oldframe, &frame);
 
@@ -410,7 +410,7 @@ static void CL_ParseFrame(int extrabits)
     if (cl_shownet->integer > 2) {
         int seq = cls.netchan.incoming_acknowledged & CMD_MASK;
         int rtt = cls.demo.playback ? 0 : cls.realtime - cl.history[seq].sent;
-        Com_LPrintf(PRINT_DEVELOPER, "%3zu:frame:%d  delta:%d  rtt:%d\n",
+        Com_LPrintf(PRINT_DEVELOPER, "%3u:frame:%d  delta:%d  rtt:%d\n",
                     msg_read.readcount - 1, frame.number, frame.delta, rtt);
     }
 #endif
@@ -1082,7 +1082,10 @@ static void CL_ParsePrint(void)
     SHOWNET(2, "    %i \"%s\"\n", level, Com_MakePrintable(s));
 
     if (level != PRINT_CHAT) {
-        Com_Printf("%s", s);
+        if (cl.csr.extended && (level == PRINT_TYPEWRITER || level == PRINT_CENTER))
+            SCR_CenterPrint(s, level == PRINT_TYPEWRITER);
+        else
+            Com_Printf("%s", s);
         if (!cls.demo.playback && cl.serverstate != ss_broadcast) {
             COM_strclr(s);
             Cmd_ExecTrigger(s);
@@ -1138,7 +1141,7 @@ static void CL_ParseCenterPrint(void)
 
     MSG_ReadString(s, sizeof(s));
     SHOWNET(2, "    \"%s\"\n", Com_MakePrintable(s));
-    SCR_CenterPrint(s);
+    SCR_CenterPrint(s, false);
 
     if (!cls.demo.playback && cl.serverstate != ss_broadcast) {
         COM_strclr(s);
@@ -1373,12 +1376,12 @@ CL_ParseServerMessage
 void CL_ParseServerMessage(void)
 {
     int         cmd, index, extrabits;
-    size_t      readcount;
+    uint32_t    readcount;
     uint64_t    bits;
 
 #if USE_DEBUG
     if (cl_shownet->integer == 1) {
-        Com_LPrintf(PRINT_DEVELOPER, "%zu ", msg_read.cursize);
+        Com_LPrintf(PRINT_DEVELOPER, "%u ", msg_read.cursize);
     } else if (cl_shownet->integer > 1) {
         Com_LPrintf(PRINT_DEVELOPER, "------------------\n");
     }
@@ -1392,7 +1395,7 @@ void CL_ParseServerMessage(void)
     while (1) {
         readcount = msg_read.readcount;
         if (readcount == msg_read.cursize) {
-            SHOWNET(1, "%3zu:END OF MESSAGE\n", readcount);
+            SHOWNET(1, "%3u:END OF MESSAGE\n", readcount);
             break;
         }
 
@@ -1403,10 +1406,10 @@ void CL_ParseServerMessage(void)
         extrabits = cmd >> SVCMD_BITS;
         cmd &= SVCMD_MASK;
 
-		if (cmd == svc_extend)
+        if (cmd == svc_extend)
 			cmd = MSG_ReadByte();
 
-        SHOWNET(1, "%3zu:%s\n", msg_read.readcount - 1, MSG_ServerCommandString(cmd));
+        SHOWNET(1, "%3u:%s\n", msg_read.readcount - 1, MSG_ServerCommandString(cmd));
 
         // other commands
 		switch (cmd) {
@@ -1567,7 +1570,7 @@ void CL_ParseServerMessage(void)
 
         // if recording demos, copy off protocol invariant stuff
         if (cls.demo.recording && !cls.demo.paused) {
-            size_t len = msg_read.readcount - readcount;
+            uint32_t len = msg_read.readcount - readcount;
 
             // it is very easy to overflow standard 1390 bytes
             // demo frame with modern servers... attempt to preserve
@@ -1601,7 +1604,7 @@ bool CL_SeekDemoMessage(void)
 
 #if USE_DEBUG
     if (cl_shownet->integer == 1) {
-        Com_LPrintf(PRINT_DEVELOPER, "%zu ", msg_read.cursize);
+        Com_LPrintf(PRINT_DEVELOPER, "%u ", msg_read.cursize);
     } else if (cl_shownet->integer > 1) {
         Com_LPrintf(PRINT_DEVELOPER, "------------------\n");
     }
@@ -1614,12 +1617,12 @@ bool CL_SeekDemoMessage(void)
 //
     while (1) {
         if (msg_read.readcount == msg_read.cursize) {
-            SHOWNET(1, "%3zu:END OF MESSAGE\n", msg_read.readcount);
+            SHOWNET(1, "%3u:END OF MESSAGE\n", msg_read.readcount);
             break;
         }
 
         cmd = MSG_ReadByte();
-        SHOWNET(1, "%3zu:%s\n", msg_read.readcount - 1, MSG_ServerCommandString(cmd));
+        SHOWNET(1, "%3u:%s\n", msg_read.readcount - 1, MSG_ServerCommandString(cmd));
 
         // other commands
         switch (cmd) {

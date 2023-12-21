@@ -1414,6 +1414,7 @@ static void IMG_List_f(void)
                 "\nFlags legend:\n"
                 "T: transparent\n"
                 "S: scrap\n"
+                "G: glowmap\n"
                 "*: permanent\n"
             );
             return;
@@ -1441,7 +1442,7 @@ static void IMG_List_f(void)
         Com_Printf("%c%c%c%c %4i %4i %s: %s\n",
                    types[image->type > IT_MAX ? IT_MAX : image->type],
                    (image->flags & IF_TRANSPARENT) ? 'T' : ' ',
-                   (image->flags & IF_SCRAP) ? 'S' : ' ',
+                   (image->flags & IF_SCRAP) ? 'S' : image->glow_texnum ? 'G' : ' ',
                    (image->flags & IF_PERMANENT) ? '*' : ' ',
                    image->upload_width,
                    image->upload_height,
@@ -1663,7 +1664,9 @@ static void print_error(const char *name, imageflags_t flags, int err)
         msg = Com_GetLastError();
         break;
     case Q_ERR(ENOENT):
-        if (flags & IF_PERMANENT) {
+        if (flags == -1) {
+            return;
+        } else if (flags & IF_PERMANENT) {
             // ugly hack for console code
             if (strcmp(name, "pics/conchars.pcx"))
                 level = PRINT_WARNING;
@@ -1754,7 +1757,7 @@ static void check_for_glow_map(image_t *image)
 
     ret = load_image_data(&temporary, IM_PCX, false, &glow_pic);
     if (ret < 0) {
-        print_error(temporary.name, 0, ret);
+        print_error(temporary.name, -1, ret);
         return;
     }
 
