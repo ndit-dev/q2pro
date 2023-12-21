@@ -49,6 +49,7 @@ cvar_t  *steamid;
 #if USE_CLIENT
 cvar_t  *steamcloudappenabled;
 cvar_t  *steamclouduserenabled;
+cvar_t  *scopename;
 #endif
 
 cvar_t  *filterban;
@@ -136,6 +137,7 @@ void InitGame(void)
         steamid = gi.cvar("steamid", "0", CVAR_USERINFO | CVAR_NOSET);
         steamcloudappenabled = gi.cvar("steamcloudappenabled", "", CVAR_USERINFO);
         steamclouduserenabled = gi.cvar("steamclouduserenabled", "", CVAR_USERINFO);
+        scopename = gi.cvar("scopename", "scopexyz", CVAR_USERINFO);
     #endif
 
     // latched vars

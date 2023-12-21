@@ -1314,7 +1314,7 @@ enum {
 #define DF_QUADFIRE_DROP    BIT(16)
 
 //ROGUE
-#define DF_NO_MINES         BIT(17)
+#define DF_NO_MINES         BIT(17) // In AQtion, this is the dmflag for Darkmatch
 #define DF_NO_STACK_DOUBLE  BIT(18)
 #define DF_NO_NUKES         BIT(19)
 #define DF_NO_SPHERES       BIT(20)

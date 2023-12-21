@@ -87,6 +87,7 @@ cvar_t  *dedicated;
 cvar_t  *steamid;
 cvar_t  *steamcloudappenabled;
 cvar_t  *steamclouduserenabled;
+cvar_t  *scopename;
 #endif
 cvar_t  *com_version;
 
@@ -894,6 +895,7 @@ void Qcommon_Init(int argc, char **argv)
     steamid = Cvar_Get("steamid", "0", CVAR_NOSET);
     steamcloudappenabled = Cvar_Get("steamcloudappenabled", "0", CVAR_NOSET);
     steamclouduserenabled = Cvar_Get("steamclouduserenabled", "0", CVAR_NOSET);
+    scopename = Cvar_Get("scopename", "", CVAR_USERINFO);
     cl_running = Cvar_Get("cl_running", "0", CVAR_ROM);
     cl_paused = Cvar_Get("cl_paused", "0", CVAR_ROM);
 #else

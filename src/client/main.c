@@ -101,6 +101,7 @@ cvar_t  *info_uf;
 cvar_t  *info_steamid;
 cvar_t  *info_steamcloudappenabled;
 cvar_t  *info_steamclouduserenabled;
+cvar_t  *info_scopename;
 cvar_t  *cl_mk23_sound;
 cvar_t  *cl_mp5_sound;
 cvar_t  *cl_m4_sound;
@@ -4074,6 +4075,7 @@ static void CL_InitLocal(void)
         info_steamid = Cvar_Get("steamid", "", CVAR_USERINFO);
         info_steamcloudappenabled = Cvar_Get("steamcloudappenabled", "", CVAR_USERINFO);
         info_steamclouduserenabled = Cvar_Get("steamclouduserenabled", "", CVAR_USERINFO);
+        info_scopename = Cvar_Get("scopename", "", CVAR_USERINFO);
     #endif
     info_version = Cvar_Get("version", "", CVAR_USERINFO);
 
@@ -4630,6 +4632,10 @@ void CL_Init(void)
 
 #if USE_ZLIB
     Q_assert(inflateInit2(&cls.z, -MAX_WBITS) == Z_OK);
+#endif
+
+if USE_AQTION
+    CL_RetrieveSteamID();
 #endif
 
     SCR_InitCinematics();
