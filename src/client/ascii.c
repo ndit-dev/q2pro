@@ -234,7 +234,7 @@ static void TH_DrawLayoutString(char *dst, const char *s)
             token = COM_Parse(&s);
             value = atoi(token);
             if (value < 0 || value >= MAX_STATS) {
-                Com_Error(ERR_DROP, "%s: invalid stat index", __func__);
+                Com_Error(ERR_DROP, "%s: invalid stat index for num: %i", __func__, value);
             }
             value = cl.frame.ps.stats[value];
             TH_DrawNumber(dst, x, y, width, value);
@@ -245,11 +245,11 @@ static void TH_DrawLayoutString(char *dst, const char *s)
             token = COM_Parse(&s);
             index = atoi(token);
             if (index < 0 || index >= MAX_STATS) {
-                Com_Error(ERR_DROP, "%s: invalid string index", __func__);
+                Com_Error(ERR_DROP, "%s: invalid string index for stat_string: %i", __func__, index);
             }
             index = cl.frame.ps.stats[index];
             if (index < 0 || index >= cl.csr.end) {
-                Com_Error(ERR_DROP, "%s: invalid string index", __func__);
+                Com_Error(ERR_DROP, "%s: invalid string index for stat_string: %i", __func__, index);
             }
             len = strlen(cl.configstrings[index]);
             TH_DrawString(dst, x, y, cl.configstrings[index], len);
@@ -274,7 +274,7 @@ static void TH_DrawLayoutString(char *dst, const char *s)
             token = COM_Parse(&s);
             value = atoi(token);
             if (value < 0 || value >= MAX_STATS) {
-                Com_Error(ERR_DROP, "%s: invalid stat index", __func__);
+                Com_Error(ERR_DROP, "%s: invalid stat index for if: %i", __func__, value);
             }
             value = cl.frame.ps.stats[value];
             if (!value) {   // skip to endif
