@@ -1785,8 +1785,8 @@ static void MVD_GameInit(void)
         Com_EPrintf("Couldn't load %s for the Waiting Room: %s\n",
                     buffer, BSP_ErrorString(ret));
         Cvar_Reset(mvd_default_map);
-        strcpy(buffer, "maps/q2dm1.bsp");
-        checksum = 80717714;
+        strcpy(buffer, "maps/wfall.bsp");
+        checksum = 917713192;
         VectorSet(mvd->spawnOrigin, 984, 192, 784);
         VectorSet(mvd->spawnAngles, 25, 72, 0);
     } else {
