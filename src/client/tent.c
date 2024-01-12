@@ -238,6 +238,34 @@ static void CL_RegisterFootsteps(void)
     }
 }
 
+static void CL_RegisterAQtionSounds(void)
+{
+    int i;
+    char    name[MAX_QPATH];
+
+    // Register all AQtion gun sounds
+    char gunsounds[][64] = {"mk23fire", "mp5fire", "m4a1fire", "shotgf1b", "cannon_fire", "ssgfire"};
+    size_t guncount = sizeof(gunsounds) / sizeof(gunsounds[0]);
+
+    for (size_t j = 0; j < guncount; j++) {
+        Q_snprintf(name, sizeof(name), "weapons/%s.wav", gunsounds[j]);
+        S_RegisterSound(name);
+        for (i = MIN_WEAPON_SOUND; i < MAX_WEAPON_SOUND; i++) {
+            Q_snprintf(name, sizeof(name), "weapons/%s%i.wav", gunsounds[j], i + 1);
+            S_RegisterSound(name);
+        }
+    }
+
+    // Register all AQtion hit sounds
+    char hitsounds[][64] = {"aphelmet", "apvest", "body", "chest", "headshot", "leg", "stomach", "vest"};
+    size_t hitsoundcount = sizeof(hitsounds) / sizeof(hitsounds[0]);
+
+    for (size_t j = 0; j < hitsoundcount; j++) {
+        Q_snprintf(name, sizeof(name), "hitsounds/%s.wav", hitsounds[j]);
+        S_RegisterSound(name);
+    }
+}
+
 /*
 =================
 CL_RegisterTEntSounds
@@ -271,22 +299,10 @@ void CL_RegisterTEntSounds(void)
     }
 
     CL_RegisterFootsteps();
+    CL_RegisterAQtionSounds();
 
     cl_sfx_lightning = S_RegisterSound("weapons/tesla.wav");
-    cl_sfx_disrexp = S_RegisterSound("weapons/disrupthit.wav");
-
-    // Register all AQtion gun sounds
-    char gunsounds[][64] = {"mk23fire", "mp5fire", "m4a1fire", "shotgf1b", "cannon_fire", "ssgfire"};
-    size_t guncount = sizeof(gunsounds) / sizeof(gunsounds[0]);
-
-    for (size_t j = 0; j < guncount; j++) {
-        Q_snprintf(name, sizeof(name), "weapons/%s.wav", gunsounds[j]);
-        S_RegisterSound(name);
-        for (i = MIN_WEAPON_SOUND; i < MAX_WEAPON_SOUND; i++) {
-            Q_snprintf(name, sizeof(name), "weapons/%s%i.wav", gunsounds[j], i + 1);
-            S_RegisterSound(name);
-        }
-    }
+    cl_sfx_disrexp = S_RegisterSound("weapons/disrupthit.wav");    
 }
 
 /*
