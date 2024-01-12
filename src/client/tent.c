@@ -1512,7 +1512,7 @@ void CL_ParseTEnt(void)
         break;
 
     case TE_LIGHTNING:
-        S_StartSound(NULL, te.entity1, CHAN_WEAPON, NULL, 1, ATTN_NORM, 0);
+        //S_StartSound(NULL, te.entity1, CHAN_WEAPON, NULL, 1, ATTN_NORM, 0);
         VectorClear(te.offset);
         CL_ParseBeam(cl_mod_lightning);
         break;
@@ -1580,7 +1580,7 @@ void CL_ParseTEnt(void)
     case TE_TRACKER_EXPLOSION:
         CL_ColorFlash(te.pos1, 0, 150, -1, -1, -1);
         CL_ColorExplosionParticles(te.pos1, 0, 1);
-        S_StartSound(te.pos1, 0, 0, NULL, 1, ATTN_NORM, 0);
+        //S_StartSound(te.pos1, 0, 0, NULL, 1, ATTN_NORM, 0);
         break;
 
     case TE_TELEPORT_EFFECT:
