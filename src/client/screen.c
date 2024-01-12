@@ -1796,7 +1796,7 @@ static void SCR_ExecuteLayoutString(const char *s)
             if (token[0]) {
                 qhandle_t pic = cl.image_precache[value];
                 // hack for action mod scope scaling
-                if (Com_WildCmp("scope?x", token)) {
+                if (Com_WildCmp("scope?x", token) || Com_WildCmp("scopes/*/scope?x", token)) {
                     int x = scr.hud_x + (scr.hud_width - scr.scope_width) / 2;
                     int y = scr.hud_y + (scr.hud_height - scr.scope_height) / 2;
 
