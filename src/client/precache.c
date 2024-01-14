@@ -238,7 +238,7 @@ void CL_RegisterBspModels(void)
             Com_WPrintf("Local map version differs from demo: %i != %s\n",
                 cl.bsp->checksum, cl.configstrings[CS_MAPCHECKSUM]);
         } else {
-            Com_Error(ERR_DROP, "Local map version differs from server: %i != %s\nRecommend removing %s locally and reconnecting",
+            Com_Error(ERR_DROP, "Local map version differs from server: %i != %s\nRecommend removing %s locally and reconnecting\n",
                 cl.bsp->checksum, cl.configstrings[CS_MAPCHECKSUM], cl.bsp->name);
         }
     }
