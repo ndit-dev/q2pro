@@ -322,7 +322,6 @@ typedef struct client_state_s {
         } muzzle;
     } weapon;
 
-    float  oldsens;
 } client_state_t;
 
 extern client_state_t   cl;

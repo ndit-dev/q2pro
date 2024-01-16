@@ -355,17 +355,15 @@ float V_CalcFov(float fov_x, float width, float height)
 #if USE_AQTION
 static void cl_zoom_autosens_changed(float fov)
 {
-    qboolean savesens;
+    cvar_t    *sensitivity = Cvar_Get("sensitivity", "0", CVAR_ARCHIVE);
+    cvar_t    *oldsens = Cvar_Get("oldsens", "0", CVAR_NOARCHIVE);
 
-    // Allocate memory for tmp and save cl.oldsens as a string
-    char tmp[32];
-    if (cl.oldsens == 0.0f)
-        snprintf(tmp, sizeof(tmp), "%f", cl.oldsens);
+    oldsens->value = atof(sensitivity->string);
+    Com_Printf("Saving sensitivity: %f\n", oldsens->value);
 
     // Adjust sensitivity based on zoom level
     if (cl.fov_x >= 90.0f) {  // No zoom
-        Cvar_Set("sensitivity", tmp);
-        savesens = true;
+        Cvar_Set("sensitivity", oldsens->string);
     } else if (cl.fov_x == 45.0f && cl_zoom_2x->value) { // 2x scope
         Cvar_Set("sensitivity", cl_zoom_2x->string);
     } else if (cl.fov_x == 20.0f && cl_zoom_4x->value) { // 4x scope
@@ -373,13 +371,8 @@ static void cl_zoom_autosens_changed(float fov)
     } else if (cl.fov_x == 10.0f && cl_zoom_6x->value) { // 6x scope
         Cvar_Set("sensitivity", cl_zoom_6x->string);
     } else { // Safe default back to 1x
-        Cvar_Set("sensitivity", tmp);
-        savesens = true;
+        Cvar_Set("sensitivity", oldsens->string);
     }
-
-    // Update cl.oldsens so we know what to restore from
-    if (savesens)
-        cl.oldsens = atof(Cvar_Get("sensitivity", "0", 0)->string);
 }
 #endif
 
@@ -438,9 +431,8 @@ void V_RenderView(void)
         }
 
         #if USE_AQTION
-        if (cl_zoom_autosens->value) {
+        if (cl_zoom_autosens->value && cl.fov_x < 90)
             cl_zoom_autosens_changed(cl.fov_x);
-        }
         #endif
 
         cl.refdef.time = cl.time * 0.001f;
