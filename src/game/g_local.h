@@ -509,7 +509,6 @@ extern  cvar_t  *dedicated;
 extern  cvar_t  *steamid;
 extern  cvar_t  *steamcloudappenabled;
 extern  cvar_t  *steamclouduserenabled;
-extern  cvar_t  *scopename;
 #endif
 
 extern  cvar_t  *filterban;
