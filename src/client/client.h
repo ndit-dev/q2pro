@@ -51,10 +51,6 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "client/ui.h"
 #include "client/video.h"
 
-#if USE_AQTION
-#include "steam/steam_api.h"
-#endif
-
 #if USE_ZLIB
 #include <zlib.h>
 #endif

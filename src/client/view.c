@@ -44,6 +44,14 @@ static cvar_t   *cl_stats;
 
 cvar_t   *cl_adjustfov;
 
+#if USE_AQTION
+static cvar_t    *cl_zoom_autosens;
+static cvar_t    *cl_zoom_1x;
+static cvar_t    *cl_zoom_2x;
+static cvar_t    *cl_zoom_4x;
+static cvar_t    *cl_zoom_6x;
+#endif
+
 int         r_numdlights;
 dlight_t    r_dlights[MAX_DLIGHTS];
 
@@ -344,6 +352,22 @@ float V_CalcFov(float fov_x, float width, float height)
     return a;
 }
 
+#if USE_AQTION
+static void cl_zoom_autosens_changed(float fov)
+{
+    if (cl.fov_x >= 90.0f)  // No zoom
+        Cvar_Set("sensitivity", cl_zoom_1x->string);
+    else if (cl.fov_x == 45.0f && cl_zoom_2x->value) // 2x scope
+        Cvar_Set("sensitivity", cl_zoom_2x->string);
+    else if (cl.fov_x == 20.0f && cl_zoom_4x->value) // 4x scope
+        Cvar_Set("sensitivity", cl_zoom_4x->string);
+    else if (cl.fov_x == 10.0f && cl_zoom_6x->value) // 6x scope
+        Cvar_Set("sensitivity", cl_zoom_6x->string);
+    else // Safe default back to 1x
+        Cvar_Set("sensitivity", cl_zoom_1x->string);
+}
+#endif
+
 
 /*
 ==================
@@ -397,6 +421,10 @@ void V_RenderView(void)
         } else {
             cl.refdef.fov_x = cl.fov_x;
             cl.refdef.fov_y = V_CalcFov(cl.refdef.fov_x, cl.refdef.width, cl.refdef.height);
+        }
+
+        if (cl_zoom_autosens->value) {
+            cl_zoom_autosens_changed(cl.fov_x);
         }
 
         cl.refdef.time = cl.time * 0.001f;
@@ -487,6 +515,14 @@ void V_Init(void)
     cl_add_blend->changed = cl_add_blend_changed;
 
     cl_adjustfov = Cvar_Get("cl_adjustfov", "1", 0);
+
+    #if USE_AQTION
+    cl_zoom_autosens = Cvar_Get("cl_zoom_autosens", "0", CVAR_ARCHIVE);
+    cl_zoom_1x = Cvar_Get("cl_zoom_1x", "0", CVAR_ARCHIVE);
+    cl_zoom_2x = Cvar_Get("cl_zoom_2x", "0", CVAR_ARCHIVE);
+    cl_zoom_4x = Cvar_Get("cl_zoom_4x", "0", CVAR_ARCHIVE);
+    cl_zoom_6x = Cvar_Get("cl_zoom_6x", "0", CVAR_ARCHIVE);
+    #endif
 }
 
 void V_Shutdown(void)
