@@ -423,9 +423,11 @@ void V_RenderView(void)
             cl.refdef.fov_y = V_CalcFov(cl.refdef.fov_x, cl.refdef.width, cl.refdef.height);
         }
 
+        #if USE_AQTION
         if (cl_zoom_autosens->value) {
             cl_zoom_autosens_changed(cl.fov_x);
         }
+        #endif
 
         cl.refdef.time = cl.time * 0.001f;
 

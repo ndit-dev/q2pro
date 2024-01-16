@@ -1361,6 +1361,7 @@ void ClientUserinfoChanged(edict_t *ent, char *userinfo)
     if (strlen(s)) {
         ent->client->pers.hand = atoi(s);
     }
+
     // save off the userinfo in case we want to check something later
     Q_strlcpy(ent->client->pers.userinfo, userinfo, sizeof(ent->client->pers.userinfo));
 }
