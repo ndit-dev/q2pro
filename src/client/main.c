@@ -4633,10 +4633,6 @@ void CL_Init(void)
     Q_assert(inflateInit2(&cls.z, -MAX_WBITS) == Z_OK);
 #endif
 
-if USE_AQTION
-    CL_RetrieveSteamID();
-#endif
-
     SCR_InitCinematics();
     OGG_Init();
 
