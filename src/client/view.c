@@ -46,7 +46,6 @@ cvar_t   *cl_adjustfov;
 
 #if USE_AQTION
 static cvar_t    *cl_zoom_autosens;
-static cvar_t    *cl_zoom_1x;
 static cvar_t    *cl_zoom_2x;
 static cvar_t    *cl_zoom_4x;
 static cvar_t    *cl_zoom_6x;
@@ -358,8 +357,8 @@ static void cl_zoom_autosens_changed(float fov)
     cvar_t    *sensitivity = Cvar_Get("sensitivity", "0", CVAR_ARCHIVE);
     cvar_t    *oldsens = Cvar_Get("oldsens", "0", CVAR_NOARCHIVE);
 
+    // Anchor value so we return to it after zooming
     oldsens->value = atof(sensitivity->string);
-    Com_Printf("Saving sensitivity: %f\n", oldsens->value);
 
     // Adjust sensitivity based on zoom level
     if (cl.fov_x >= 90.0f) {  // No zoom
@@ -431,7 +430,7 @@ void V_RenderView(void)
         }
 
         #if USE_AQTION
-        if (cl_zoom_autosens->value && cl.fov_x < 90)
+        if (cl_zoom_autosens->value)
             cl_zoom_autosens_changed(cl.fov_x);
         #endif
 
@@ -526,7 +525,6 @@ void V_Init(void)
 
     #if USE_AQTION
     cl_zoom_autosens = Cvar_Get("cl_zoom_autosens", "0", CVAR_ARCHIVE);
-    cl_zoom_1x = Cvar_Get("cl_zoom_1x", "0", CVAR_ARCHIVE);
     cl_zoom_2x = Cvar_Get("cl_zoom_2x", "0", CVAR_ARCHIVE);
     cl_zoom_4x = Cvar_Get("cl_zoom_4x", "0", CVAR_ARCHIVE);
     cl_zoom_6x = Cvar_Get("cl_zoom_6x", "0", CVAR_ARCHIVE);
