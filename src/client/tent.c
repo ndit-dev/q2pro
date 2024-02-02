@@ -252,6 +252,7 @@ static void CL_RegisterAQtionSounds(void)
             S_RegisterSound(name);
         }
     }
+    Com_DPrintf("%s: All gun sounds precached\n", __func__);
 
     // Register all AQtion hit sounds
     char hitsounds[][64] = {"aphelmet", "apvest", "body", "chest", "headshot", "leg", "stomach", "vest"};
@@ -261,6 +262,7 @@ static void CL_RegisterAQtionSounds(void)
         Q_snprintf(name, sizeof(name), "hitsounds/%s.wav", hitsounds[j]);
         S_RegisterSound(name);
     }
+    Com_DPrintf("%s: All hit sounds precached\n", __func__);
 }
 
 /*
