@@ -346,6 +346,7 @@ void ED_CallSpawn(edict_t *ent)
 
     if (!ent->classname) {
         gi.dprintf("ED_CallSpawn: NULL classname\n");
+        G_FreeEdict(ent);
         return;
     }
 
@@ -368,7 +369,9 @@ void ED_CallSpawn(edict_t *ent)
             return;
         }
     }
+
     gi.dprintf("%s doesn't have a spawn function\n", ent->classname);
+    G_FreeEdict(ent);
 }
 
 /*
@@ -432,7 +435,7 @@ static bool ED_ParseField(const spawn_field_t *fields, const char *key, const ch
                 ((float *)(b + f->ofs))[2] = vec[2];
                 break;
             case F_INT:
-                *(int *)(b + f->ofs) = atoi(value);
+                *(int *)(b + f->ofs) = Q_atoi(value);
                 break;
             case F_FLOAT:
                 *(float *)(b + f->ofs) = atof(value);
@@ -626,12 +629,11 @@ void SpawnEntities(const char *mapname, const char *entities, const char *spawnp
     int         inhibit;
     char        *com_token;
     int         i;
-    float       skill_level;
+    int         skill_level;
 
-    skill_level = floor(skill->value);
-    clamp(skill_level, 0, 3);
+    skill_level = Q_clip(skill->value, 0, 3);
     if (skill->value != skill_level)
-        gi.cvar_forceset("skill", va("%f", skill_level));
+        gi.cvar_forceset("skill", va("%d", skill_level));
 
     SaveClientData();
 
@@ -924,7 +926,7 @@ void SP_worldspawn(edict_t *ent)
     else
         gi.configstring(CS_CDTRACK, va("%i", ent->sounds));
 
-    gi.configstring(game.csr.maxclients, va("%i", (int)(maxclients->value)));
+    gi.configstring(game.csr.maxclients, va("%i", game.maxclients));
 
     // status bar program
     if (deathmatch->value)

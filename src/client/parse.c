@@ -87,10 +87,10 @@ static void CL_ParsePacketEntities(server_frame_t *oldframe,
     oldindex = 0;
     oldstate = NULL;
     if (!oldframe) {
-        oldnum = 99999;
+        oldnum = MAX_EDICTS;
     } else {
         if (oldindex >= oldframe->numEntities) {
-            oldnum = 99999;
+            oldnum = MAX_EDICTS;
         } else {
             i = oldframe->firstEntity + oldindex;
             oldstate = &cl.entityStates[i & PARSE_ENTITIES_MASK];
@@ -116,7 +116,7 @@ static void CL_ParsePacketEntities(server_frame_t *oldframe,
             oldindex++;
 
             if (oldindex >= oldframe->numEntities) {
-                oldnum = 99999;
+                oldnum = MAX_EDICTS;
             } else {
                 i = oldframe->firstEntity + oldindex;
                 oldstate = &cl.entityStates[i & PARSE_ENTITIES_MASK];
@@ -137,7 +137,7 @@ static void CL_ParsePacketEntities(server_frame_t *oldframe,
             oldindex++;
 
             if (oldindex >= oldframe->numEntities) {
-                oldnum = 99999;
+                oldnum = MAX_EDICTS;
             } else {
                 i = oldframe->firstEntity + oldindex;
                 oldstate = &cl.entityStates[i & PARSE_ENTITIES_MASK];
@@ -157,7 +157,7 @@ static void CL_ParsePacketEntities(server_frame_t *oldframe,
             oldindex++;
 
             if (oldindex >= oldframe->numEntities) {
-                oldnum = 99999;
+                oldnum = MAX_EDICTS;
             } else {
                 i = oldframe->firstEntity + oldindex;
                 oldstate = &cl.entityStates[i & PARSE_ENTITIES_MASK];
@@ -179,7 +179,7 @@ static void CL_ParsePacketEntities(server_frame_t *oldframe,
     }
 
     // any remaining entities in the old frame are copied over
-    while (oldnum != 99999) {
+    while (oldnum != MAX_EDICTS) {
         // one or more entities from the old packet are unchanged
         SHOWNET(3, "   unchanged: %i\n", oldnum);
         CL_ParseDeltaEntity(frame, oldnum, oldstate, 0);
@@ -187,7 +187,7 @@ static void CL_ParsePacketEntities(server_frame_t *oldframe,
         oldindex++;
 
         if (oldindex >= oldframe->numEntities) {
-            oldnum = 99999;
+            oldnum = MAX_EDICTS;
         } else {
             i = oldframe->firstEntity + oldindex;
             oldstate = &cl.entityStates[i & PARSE_ENTITIES_MASK];
@@ -626,7 +626,7 @@ static void CL_ParseServerData(void)
                 "R1Q2 server reports unsupported protocol version %d.\n"
                 "Assuming it really uses our current client version %d.\n"
                 "Things will break if it does not!\n", i, PROTOCOL_VERSION_R1Q2_CURRENT);
-            clamp(i, PROTOCOL_VERSION_R1Q2_MINIMUM, PROTOCOL_VERSION_R1Q2_CURRENT);
+            i = Q_clip(i, PROTOCOL_VERSION_R1Q2_MINIMUM, PROTOCOL_VERSION_R1Q2_CURRENT);
         }
         Com_DPrintf("Using minor R1Q2 protocol version %d\n", i);
         cls.protocolVersion = i;
@@ -1217,7 +1217,8 @@ static void CL_ParseZPacket(void)
 #if USE_ZLIB
     sizebuf_t   temp;
     byte        buffer[MAX_MSGLEN];
-    int         ret, inlen, outlen;
+    uInt        inlen, outlen;
+    int         ret;
 
     if (msg_read.data != msg_read_buffer) {
         Com_Error(ERR_DROP, "%s: recursively entered", __func__);
@@ -1232,9 +1233,9 @@ static void CL_ParseZPacket(void)
     inflateReset(&cls.z);
 
     cls.z.next_in = MSG_ReadData(inlen);
-    cls.z.avail_in = (uInt)inlen;
+    cls.z.avail_in = inlen;
     cls.z.next_out = buffer;
-    cls.z.avail_out = (uInt)outlen;
+    cls.z.avail_out = outlen;
     ret = inflate(&cls.z, Z_FINISH);
     if (ret != Z_STREAM_END) {
         Com_Error(ERR_DROP, "%s: inflate() failed with error %d", __func__, ret);

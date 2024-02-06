@@ -21,7 +21,6 @@ env:
     -Ddiscord-sdk=true
 
   MESON_ARGS_WIN: >-
-    -Dlibpng:werror=false
     -Dsdl2=disabled
     -Dwayland=disabled
     -Dwrap_mode=forcefallback
@@ -61,9 +60,14 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
+<<<<<<< HEAD
           sudo apt-get install -y gcc-mingw-w64 meson nasm uuid-dev \
           libavcodec-dev libavformat-dev libavutil-dev \
           libswresample-dev libswscale-dev \
+=======
+          sudo apt-get install -y gcc-mingw-w64 nasm python3-pip ninja-build
+          sudo python3 -m pip install meson
+>>>>>>> 49b9c7ede0420f66ae941f3211875ec7d4338c8c
 
       - name: Build
         run: |
