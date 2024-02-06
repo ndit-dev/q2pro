@@ -610,8 +610,7 @@ static void SCR_LagDraw(int x, int y)
         }
 
         v &= ~(LAG_WARN_BIT | LAG_CRIT_BIT);
-        v = (v - v_min) * DRAW_LAG_HEIGHT / v_range;
-        clamp(v, 0, DRAW_LAG_HEIGHT);
+        v = Q_clip((v - v_min) * LAG_HEIGHT / v_range, 0, LAG_HEIGHT);
 
         R_DrawFill8(x + DRAW_LAG_WIDTH - i - 1, y + DRAW_LAG_HEIGHT - v, 1, v, c);
     }
@@ -725,8 +724,8 @@ static void SCR_Draw_f(void)
     flags = UI_IGNORECOLOR;
 
     s = Cmd_Argv(1);
-    x = atoi(Cmd_Argv(2));
-    y = atoi(Cmd_Argv(3));
+    x = Q_atoi(Cmd_Argv(2));
+    y = Q_atoi(Cmd_Argv(3));
 
     if (x < 0) {
         flags |= UI_RIGHT;
@@ -1743,19 +1742,19 @@ static void SCR_ExecuteLayoutString(const char *s)
             if (token[0] == 'x') {
                 if (token[1] == 'l') {
                     token = COM_Parse(&s);
-                    x = scr.hud_x + atoi(token);
+                    x = Q_atoi(token);
                     continue;
                 }
 
                 if (token[1] == 'r') {
                     token = COM_Parse(&s);
-                    x = scr.hud_x + scr.hud_width + atoi(token);
+                    x = scr.hud_width + Q_atoi(token);
                     continue;
                 }
 
                 if (token[1] == 'v') {
                     token = COM_Parse(&s);
-                    x = scr.hud_x + scr.hud_width / 2 - 160 + atoi(token);
+                    x = scr.hud_width / 2 - 160 + Q_atoi(token);
                     continue;
                 }
             }
@@ -1763,19 +1762,19 @@ static void SCR_ExecuteLayoutString(const char *s)
             if (token[0] == 'y') {
                 if (token[1] == 't') {
                     token = COM_Parse(&s);
-                    y = scr.hud_y + atoi(token);
+                    y = Q_atoi(token);
                     continue;
                 }
 
                 if (token[1] == 'b') {
                     token = COM_Parse(&s);
-                    y = scr.hud_y + scr.hud_height + atoi(token);
+                    y = scr.hud_height + Q_atoi(token);
                     continue;
                 }
 
                 if (token[1] == 'v') {
                     token = COM_Parse(&s);
-                    y = scr.hud_y + scr.hud_height / 2 - 120 + atoi(token);
+                    y = scr.hud_height / 2 - 120 + Q_atoi(token);
                     continue;
                 }
             }
@@ -1784,7 +1783,7 @@ static void SCR_ExecuteLayoutString(const char *s)
         if (!strcmp(token, "pic")) {
             // draw a pic from a stat number
             token = COM_Parse(&s);
-            value = atoi(token);
+            value = Q_atoi(token);
             if (value < 0 || value >= MAX_STATS) {
                 Com_Error(ERR_DROP, "%s: invalid stat index for pic: %i", __func__, value);
             }
@@ -1817,25 +1816,25 @@ static void SCR_ExecuteLayoutString(const char *s)
             int     score, ping, time;
 
             token = COM_Parse(&s);
-            x = scr.hud_x + scr.hud_width / 2 - 160 + atoi(token);
+            x = scr.hud_width / 2 - 160 + Q_atoi(token);
             token = COM_Parse(&s);
-            y = scr.hud_y + scr.hud_height / 2 - 120 + atoi(token);
+            y = scr.hud_height / 2 - 120 + Q_atoi(token);
 
             token = COM_Parse(&s);
-            value = atoi(token);
+            value = Q_atoi(token);
             if (value < 0 || value >= MAX_CLIENTS) {
                 Com_Error(ERR_DROP, "%s: invalid client index", __func__);
             }
             ci = &cl.clientinfo[value];
 
             token = COM_Parse(&s);
-            score = atoi(token);
+            score = Q_atoi(token);
 
             token = COM_Parse(&s);
-            ping = atoi(token);
+            ping = Q_atoi(token);
 
             token = COM_Parse(&s);
-            time = atoi(token);
+            time = Q_atoi(token);
 
             HUD_DrawAltString(x + 32, y, ci->name);
             HUD_DrawString(x + 32, y + CHAR_HEIGHT, "Score: ");
@@ -1858,22 +1857,22 @@ static void SCR_ExecuteLayoutString(const char *s)
             int     score, ping;
 
             token = COM_Parse(&s);
-            x = scr.hud_x + scr.hud_width / 2 - 160 + atoi(token);
+            x = scr.hud_width / 2 - 160 + Q_atoi(token);
             token = COM_Parse(&s);
-            y = scr.hud_y + scr.hud_height / 2 - 120 + atoi(token);
+            y = scr.hud_height / 2 - 120 + Q_atoi(token);
 
             token = COM_Parse(&s);
-            value = atoi(token);
+            value = Q_atoi(token);
             if (value < 0 || value >= MAX_CLIENTS) {
                 Com_Error(ERR_DROP, "%s: invalid client index", __func__);
             }
             ci = &cl.clientinfo[value];
 
             token = COM_Parse(&s);
-            score = atoi(token);
+            score = Q_atoi(token);
 
             token = COM_Parse(&s);
-            ping = atoi(token);
+            ping = Q_atoi(token);
             if (ping > 999)
                 ping = 999;
 
@@ -1897,9 +1896,9 @@ static void SCR_ExecuteLayoutString(const char *s)
         if (!strcmp(token, "num")) {
             // draw a number
             token = COM_Parse(&s);
-            width = atoi(token);
+            width = Q_atoi(token);
             token = COM_Parse(&s);
-            value = atoi(token);
+            value = Q_atoi(token);
             if (value < 0 || value >= MAX_STATS) {
                 Com_Error(ERR_DROP, "%s: invalid stat index for num: %i", __func__, value);
             }
@@ -1969,7 +1968,7 @@ static void SCR_ExecuteLayoutString(const char *s)
         if (!strncmp(token, "stat_", 5)) {
             char *cmd = token + 5;
             token = COM_Parse(&s);
-            index = atoi(token);
+            index = Q_atoi(token);
             if (index < 0 || index >= MAX_STATS) {
                 Com_Error(ERR_DROP, "%s: invalid stat index for stat_: %i", __func__, index);
             }
@@ -2031,7 +2030,7 @@ static void SCR_ExecuteLayoutString(const char *s)
 
         if (!strcmp(token, "if")) {
             token = COM_Parse(&s);
-            value = atoi(token);
+            value = Q_atoi(token);
             if (value < 0 || value >= MAX_STATS) {
                 Com_Error(ERR_DROP, "%s: invalid stat index for if: %i", __func__, value);
             }
@@ -2428,7 +2427,7 @@ static void SCR_DrawGhud(void)
 			//
 
 			float mult = 300 / link->distance;
-			clamp(mult, 0.25, 5);
+			Q_clip(mult, 0.25, 5);
 
 			int sizex = element->size[0] * mult;
 			int sizey = element->size[1] * mult;

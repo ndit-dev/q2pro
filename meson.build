@@ -324,7 +324,7 @@ fallback_opt = ['default_library=static']
 
 zlib = dependency('zlib',
   required:        get_option('zlib'),
-  default_options: fallback_opt,
+  default_options: fallback_opt + [ 'tests=disabled' ],
 )
 
 if not zlib.found()
@@ -364,7 +364,7 @@ game_deps = [zlib]
 
 jpeg = dependency('libjpeg',
   required:        get_option('libjpeg'),
-  default_options: fallback_opt,
+  default_options: fallback_opt + [ 'jpeg-turbo=disabled', 'tests=disabled' ]
 )
 
 if jpeg.found()

@@ -659,7 +659,8 @@ static int my_jpeg_start_decompress(j_decompress_ptr cinfo, byte *rawdata, size_
         return Q_ERR_INVALID_FORMAT;
     }
 
-    if (cinfo->output_width > MAX_TEXTURE_SIZE || cinfo->output_height > MAX_TEXTURE_SIZE) {
+    if (cinfo->output_width < 1 || cinfo->output_width > MAX_TEXTURE_SIZE ||
+        cinfo->output_height < 1 || cinfo->output_height > MAX_TEXTURE_SIZE) {
         Com_SetLastError("invalid image dimensions");
         return Q_ERR_INVALID_FORMAT;
     }
@@ -737,7 +738,7 @@ static int my_jpeg_compress(j_compress_ptr cinfo, JSAMPARRAY row_pointers, scree
     cinfo->in_color_space = s->bpp == 4 ? JCS_EXT_RGBA : JCS_RGB;
 
     jpeg_set_defaults(cinfo);
-    jpeg_set_quality(cinfo, clamp(s->param, 0, 100), TRUE);
+    jpeg_set_quality(cinfo, Q_clip(s->param, 0, 100), TRUE);
 
     jpeg_start_compress(cinfo, TRUE);
     jpeg_write_scanlines(cinfo, row_pointers, s->height);
@@ -845,7 +846,7 @@ static int my_png_read_header(png_structp png_ptr, png_infop info_ptr,
         return Q_ERR_FAILURE;
     }
 
-    if (w > MAX_TEXTURE_SIZE || h > MAX_TEXTURE_SIZE) {
+    if (w < 1 || h < 1 || w > MAX_TEXTURE_SIZE || h > MAX_TEXTURE_SIZE) {
         Com_SetLastError("invalid image dimensions");
         return Q_ERR_INVALID_FORMAT;
     }
@@ -919,7 +920,7 @@ IMG_LOAD(PNG)
     if (rawlen < 8)
         return Q_ERR_FILE_TOO_SMALL;
 
-    if (!png_check_sig(rawdata, 8))
+    if (png_sig_cmp(rawdata, 0, 8))
         return Q_ERR_UNKNOWN_FORMAT;
 
     my_err.filename = image->name;
@@ -976,7 +977,7 @@ static int my_png_write_image(png_structp png_ptr, png_infop info_ptr,
     png_init_io(png_ptr, s->fp);
     png_set_IHDR(png_ptr, info_ptr, s->width, s->height, 8, PNG_COLOR_TYPE_RGB,
                  PNG_INTERLACE_NONE, PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
-    png_set_compression_level(png_ptr, clamp(s->param, 0, 9));
+    png_set_compression_level(png_ptr, Q_clip(s->param, 0, 9));
     png_set_rows(png_ptr, info_ptr, row_pointers);
     png_write_png(png_ptr, info_ptr, s->bpp == 4 ? PNG_TRANSFORM_STRIP_FILLER_AFTER : 0, NULL);
     return 0;
@@ -1283,7 +1284,7 @@ static void IMG_ScreenShotJPG_f(void)
     }
 
     if (Cmd_Argc() > 2) {
-        quality = atoi(Cmd_Argv(2));
+        quality = Q_atoi(Cmd_Argv(2));
     } else {
         quality = r_screenshot_quality->integer;
     }
@@ -1304,7 +1305,7 @@ static void IMG_ScreenShotPNG_f(void)
     }
 
     if (Cmd_Argc() > 2) {
-        compression = atoi(Cmd_Argv(2));
+        compression = Q_atoi(Cmd_Argv(2));
     } else {
         compression = r_screenshot_compression->integer;
     }

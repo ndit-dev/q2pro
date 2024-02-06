@@ -129,7 +129,7 @@ void HashMap_Destroy(hash_map_t *map)
 HashMap_Reserve
 =================
 */
-void HashMap_Reserve(hash_map_t *map, int capacity)
+void HashMap_Reserve(hash_map_t *map, uint32_t capacity)
 {
     const uint32_t new_key_value_storage_size = Q_npot32(capacity);
     if (map->key_value_storage_size < new_key_value_storage_size)
@@ -256,7 +256,6 @@ HashMap_LookupImpl
 void *HashMap_LookupImpl(hash_map_t *map, const uint32_t key_size, const void *const key)
 {
     Q_assert(map->key_size == key_size);
-
     if (map->num_entries == 0)
         return NULL;
 
@@ -266,7 +265,7 @@ void *HashMap_LookupImpl(hash_map_t *map, const uint32_t key_size, const void *c
     while (storage_index != UINT32_MAX) {
         const void *const storage_key = HashMap_GetKeyImpl(map, storage_index);
         if (map->comp ? map->comp(key, storage_key) : (memcmp(key, storage_key, key_size) == 0))
-            return (byte *)map->values + (storage_index * map->value_size);
+            return HashMap_GetValueImpl(map, storage_index);
         storage_index = map->index_chain[storage_index];
     }
 
