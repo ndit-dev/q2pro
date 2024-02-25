@@ -51,6 +51,10 @@ static cvar_t    *m_yaw;
 static cvar_t    *m_forward;
 static cvar_t    *m_side;
 
+static cvar_t   *m_dpi;
+static cvar_t   *cm_per_360;
+static cvar_t   *in_per_360;
+
 /*
 ===============================================================================
 
@@ -176,11 +180,58 @@ static void in_changed_soft(cvar_t *self)
     IN_Activate();
 }
 
+static void calculateSensitivity(float cm_per_360, float m_yaw, float m_dpi) {
+    float newSensitivity = ((360 / (cm_per_360 / 2.54)) / m_yaw / m_dpi);
+    char newSensitivity_str[32];
+    sprintf(newSensitivity_str, "%f", newSensitivity);
+    Cvar_Set("sensitivity", newSensitivity_str);
+}
+
+static void calculateInPer360(float sensitivity, float m_yaw, float m_dpi) {
+    float newInPer360 = (360 / (sensitivity * m_yaw) / m_dpi);
+    char newInPer360_str[32];
+    sprintf(newInPer360_str, "%f", newInPer360);
+    Cvar_Set("in_per_360", newInPer360_str);
+}
+
+static void calculateCmPer360(float in_per_360) {
+    float newCmPer360 = (in_per_360 * 2.54);
+    char newCmPer360_str[32];
+    sprintf(newCmPer360_str, "%f", newCmPer360);
+    Cvar_Set("cm_per_360", newCmPer360_str);
+}
+
+static void sensitivity_changed(cvar_t *self) {
+    calculateInPer360(self->value, m_yaw->value, m_dpi->value);
+    calculateCmPer360(in_per_360->value);
+}
+
+static void m_dpi_changed(cvar_t *self) {
+    calculateInPer360(sensitivity->value, m_yaw->value, self->value);
+    calculateCmPer360(in_per_360->value);
+}
+
+static void cm_per_360_changed(cvar_t *self) {
+    calculateSensitivity(self->value, m_yaw->value, m_dpi->value);
+    calculateInPer360(sensitivity->value, m_yaw->value, m_dpi->value);
+}
+
+static void in_per_360_changed(cvar_t *self) {
+    calculateSensitivity(cm_per_360->value, m_yaw->value, m_dpi->value);
+    calculateCmPer360(self->value);
+}
+
+static void m_yaw_changed(cvar_t *self) {
+    calculateInPer360(sensitivity->value, self->value, m_dpi->value);
+    calculateCmPer360(in_per_360->value);
+}
+
 /*
 ============
 IN_Init
 ============
 */
+
 void IN_Init(void)
 {
     in_enable = Cvar_Get("in_enable", "1", 0);
@@ -197,6 +248,14 @@ void IN_Init(void)
 
     in_grab = Cvar_Get("in_grab", "1", 0);
     in_grab->changed = in_changed_soft;
+
+    if (in_per_360->value == 0.0f) {
+        calculateInPer360(sensitivity->value, m_yaw->value, m_dpi->value);
+    }
+
+    if (cm_per_360->value == 0.0f) {
+        calculateCmPer360(in_per_360->value);
+    }
 
     IN_Activate();
 }
@@ -645,45 +704,6 @@ static void m_autosens_changed(cvar_t *self)
     autosens_y = 1.0f / V_CalcFov(fov, 4, 3);
 }
 
-static const cmdreg_t c_input[] = {
-    { "centerview", IN_CenterView },
-    { "+moveup", IN_UpDown },
-    { "-moveup", IN_UpUp },
-    { "+movedown", IN_DownDown },
-    { "-movedown", IN_DownUp },
-    { "+left", IN_LeftDown },
-    { "-left", IN_LeftUp },
-    { "+right", IN_RightDown },
-    { "-right", IN_RightUp },
-    { "+forward", IN_ForwardDown },
-    { "-forward", IN_ForwardUp },
-    { "+back", IN_BackDown },
-    { "-back", IN_BackUp },
-    { "+lookup", IN_LookupDown },
-    { "-lookup", IN_LookupUp },
-    { "+lookdown", IN_LookdownDown },
-    { "-lookdown", IN_LookdownUp },
-    { "+strafe", IN_StrafeDown },
-    { "-strafe", IN_StrafeUp },
-    { "+moveleft", IN_MoveleftDown },
-    { "-moveleft", IN_MoveleftUp },
-    { "+moveright", IN_MoverightDown },
-    { "-moveright", IN_MoverightUp },
-    { "+speed", IN_SpeedDown },
-    { "-speed", IN_SpeedUp },
-    { "+attack", IN_AttackDown },
-    { "-attack", IN_AttackUp },
-    { "+use", IN_UseDown },
-    { "-use", IN_UseUp },
-    { "impulse", IN_Impulse },
-    { "+klook", IN_KLookDown },
-    { "-klook", IN_KLookUp },
-    { "+mlook", IN_MLookDown },
-    { "-mlook", IN_MLookUp },
-    { "in_restart", IN_Restart_f },
-    { NULL }
-};
-
 /*
 ============
 CL_RegisterInput
@@ -691,7 +711,43 @@ CL_RegisterInput
 */
 void CL_RegisterInput(void)
 {
-    Cmd_Register(c_input);
+    Cmd_AddCommand("centerview", IN_CenterView);
+
+    Cmd_AddCommand("+moveup", IN_UpDown);
+    Cmd_AddCommand("-moveup", IN_UpUp);
+    Cmd_AddCommand("+movedown", IN_DownDown);
+    Cmd_AddCommand("-movedown", IN_DownUp);
+    Cmd_AddCommand("+left", IN_LeftDown);
+    Cmd_AddCommand("-left", IN_LeftUp);
+    Cmd_AddCommand("+right", IN_RightDown);
+    Cmd_AddCommand("-right", IN_RightUp);
+    Cmd_AddCommand("+forward", IN_ForwardDown);
+    Cmd_AddCommand("-forward", IN_ForwardUp);
+    Cmd_AddCommand("+back", IN_BackDown);
+    Cmd_AddCommand("-back", IN_BackUp);
+    Cmd_AddCommand("+lookup", IN_LookupDown);
+    Cmd_AddCommand("-lookup", IN_LookupUp);
+    Cmd_AddCommand("+lookdown", IN_LookdownDown);
+    Cmd_AddCommand("-lookdown", IN_LookdownUp);
+    Cmd_AddCommand("+strafe", IN_StrafeDown);
+    Cmd_AddCommand("-strafe", IN_StrafeUp);
+    Cmd_AddCommand("+moveleft", IN_MoveleftDown);
+    Cmd_AddCommand("-moveleft", IN_MoveleftUp);
+    Cmd_AddCommand("+moveright", IN_MoverightDown);
+    Cmd_AddCommand("-moveright", IN_MoverightUp);
+    Cmd_AddCommand("+speed", IN_SpeedDown);
+    Cmd_AddCommand("-speed", IN_SpeedUp);
+    Cmd_AddCommand("+attack", IN_AttackDown);
+    Cmd_AddCommand("-attack", IN_AttackUp);
+    Cmd_AddCommand("+use", IN_UseDown);
+    Cmd_AddCommand("-use", IN_UseUp);
+    Cmd_AddCommand("impulse", IN_Impulse);
+    Cmd_AddCommand("+klook", IN_KLookDown);
+    Cmd_AddCommand("-klook", IN_KLookUp);
+    Cmd_AddCommand("+mlook", IN_MLookDown);
+    Cmd_AddCommand("-mlook", IN_MLookUp);
+
+    Cmd_AddCommand("in_restart", IN_Restart_f);
 
     cl_nodelta = Cvar_Get("cl_nodelta", "0", 0);
     cl_maxpackets = Cvar_Get("cl_maxpackets", "30", 0);
@@ -715,9 +771,17 @@ void CL_RegisterInput(void)
     lookspring = Cvar_Get("lookspring", "0", CVAR_ARCHIVE);
     lookstrafe = Cvar_Get("lookstrafe", "0", CVAR_ARCHIVE);
     sensitivity = Cvar_Get("sensitivity", "3", CVAR_ARCHIVE);
+    sensitivity->changed = sensitivity_changed;
+    cm_per_360 = Cvar_Get ("cm_per_360", "0", CVAR_ARCHIVE);
+    cm_per_360->changed = cm_per_360_changed;
+    in_per_360 = Cvar_Get ("in_per_360", "0", CVAR_ARCHIVE);
+    in_per_360->changed = in_per_360_changed;
+    m_dpi = Cvar_Get ("m_dpi", "800", CVAR_ARCHIVE);
+    m_dpi->changed = m_dpi_changed;
 
     m_pitch = Cvar_Get("m_pitch", "0.022", CVAR_ARCHIVE);
     m_yaw = Cvar_Get("m_yaw", "0.022", 0);
+    m_yaw->changed = m_yaw_changed;
     m_forward = Cvar_Get("m_forward", "1", 0);
     m_side = Cvar_Get("m_side", "1", 0);
     m_filter = Cvar_Get("m_filter", "0", 0);
