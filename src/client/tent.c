@@ -34,9 +34,6 @@ qhandle_t   cl_sfx_watrexp;
 qhandle_t   cl_sfx_footsteps[12];
 qhandle_t   cl_sfx_landing[8];
 
-qhandle_t   cl_sfx_lightning;
-qhandle_t   cl_sfx_disrexp;
-
 //qhandle_t   cl_mod_explode;
 qhandle_t   cl_mod_smoke;
 qhandle_t   cl_mod_flash;
@@ -238,6 +235,36 @@ static void CL_RegisterFootsteps(void)
     }
 }
 
+static void CL_RegisterAQtionSounds(void)
+{
+    int i;
+    char    name[MAX_QPATH];
+
+    // Register all AQtion gun sounds
+    char gunsounds[][64] = {"mk23fire", "mp5fire", "m4a1fire", "shotgf1b", "cannon_fire", "ssgfire"};
+    size_t guncount = sizeof(gunsounds) / sizeof(gunsounds[0]);
+
+    for (size_t j = 0; j < guncount; j++) {
+        Q_snprintf(name, sizeof(name), "weapons/%s.wav", gunsounds[j]);
+        S_RegisterSound(name);
+        for (i = MIN_WEAPON_SOUND; i < MAX_WEAPON_SOUND; i++) {
+            Q_snprintf(name, sizeof(name), "weapons/%s%i.wav", gunsounds[j], i + 1);
+            S_RegisterSound(name);
+        }
+    }
+    Com_DPrintf("%s: All gun sounds precached\n", __func__);
+
+    // Register all AQtion hit sounds
+    char hitsounds[][64] = {"aphelmet", "apvest", "body", "chest", "headshot", "leg", "stomach", "vest"};
+    size_t hitsoundcount = sizeof(hitsounds) / sizeof(hitsounds[0]);
+
+    for (size_t j = 0; j < hitsoundcount; j++) {
+        Q_snprintf(name, sizeof(name), "hitsounds/%s.wav", hitsounds[j]);
+        S_RegisterSound(name);
+    }
+    Com_DPrintf("%s: All hit sounds precached\n", __func__);
+}
+
 /*
 =================
 CL_RegisterTEntSounds
@@ -271,22 +298,7 @@ void CL_RegisterTEntSounds(void)
     }
 
     CL_RegisterFootsteps();
-
-    cl_sfx_lightning = S_RegisterSound("weapons/tesla.wav");
-    cl_sfx_disrexp = S_RegisterSound("weapons/disrupthit.wav");
-
-    // Register all AQtion gun sounds
-    char gunsounds[][64] = {"mk23fire", "mp5fire", "m4a1fire", "shotgf1b", "cannon_fire", "ssgfire"};
-    size_t guncount = sizeof(gunsounds) / sizeof(gunsounds[0]);
-
-    for (size_t j = 0; j < guncount; j++) {
-        Q_snprintf(name, sizeof(name), "weapons/%s.wav", gunsounds[j]);
-        S_RegisterSound(name);
-        for (i = MIN_WEAPON_SOUND; i < MAX_WEAPON_SOUND; i++) {
-            Q_snprintf(name, sizeof(name), "weapons/%s%i.wav", gunsounds[j], i + 1);
-            S_RegisterSound(name);
-        }
-    }
+    CL_RegisterAQtionSounds();
 }
 
 /*
@@ -1502,7 +1514,7 @@ void CL_ParseTEnt(void)
         break;
 
     case TE_LIGHTNING:
-        S_StartSound(NULL, te.entity1, CHAN_WEAPON, cl_sfx_lightning, 1, ATTN_NORM, 0);
+        //S_StartSound(NULL, te.entity1, CHAN_WEAPON, NULL, 1, ATTN_NORM, 0);
         VectorClear(te.offset);
         CL_ParseBeam(cl_mod_lightning);
         break;
@@ -1570,7 +1582,7 @@ void CL_ParseTEnt(void)
     case TE_TRACKER_EXPLOSION:
         CL_ColorFlash(te.pos1, 0, 150, -1, -1, -1);
         CL_ColorExplosionParticles(te.pos1, 0, 1);
-        S_StartSound(te.pos1, 0, 0, cl_sfx_disrexp, 1, ATTN_NORM, 0);
+        //S_StartSound(te.pos1, 0, 0, NULL, 1, ATTN_NORM, 0);
         break;
 
     case TE_TELEPORT_EFFECT:
