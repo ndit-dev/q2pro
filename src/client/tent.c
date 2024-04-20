@@ -161,8 +161,15 @@ void CL_PlayFootstepSfx(int step_id, int entnum, float volume, float attenuation
     if (!sfx->num_sfx)
         return; // no footsteps, not even fallbacks
 
-    // pick a random footstep sound, but avoid playing the same one twice in a row
-    sfx_num = Q_rand_uniform(sfx->num_sfx);
+    // check if cl_enhanced_footsteps->string is "0" and sfx->num_sfx has more than four items
+    if (strcmp(cl_enhanced_footsteps->string, "0") == 0 && sfx->num_sfx > 4) {
+        // pick a random footstep sound from the first four items, important for compatibility with players using the old four stepsounds
+        sfx_num = Q_rand_uniform(4);
+    } else {
+        // pick a random footstep sound
+        sfx_num = Q_rand_uniform(sfx->num_sfx);
+    }
+    // avoid playing the same one twice in a row
     footstep_sfx = sfx->sfx[sfx_num];
     if (footstep_sfx == cl_last_footstep)
         footstep_sfx = sfx->sfx[(sfx_num + 1) % sfx->num_sfx];

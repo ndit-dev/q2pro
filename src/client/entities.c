@@ -224,22 +224,6 @@ static void parse_entity_event(int number)
         break;
     case EV_FOOTSTEP:
         if (cl_footsteps->integer) {
-            if (strcmp(cl_enhanced_footsteps->string, "0") == 0) {
-                CL_PlayFootstepSfx(-1, number, 1.0f, ATTN_NORM);
-                //S_StartSound(NULL, number, CHAN_BODY, cl_sfx_footsteps[Q_rand() & 3], 1, ATTN_NORM, 0);
-            } else {
-                int r = Q_rand() % 12;
-                if ( r == cl_laststep ) {
-                    if ( r < 11) {
-                        r++; //use next step if same as last time was generated
-                    } else {
-                        r = 0; //use first stepsound if 12 where used twice
-                    }
-                }
-                CL_PlayFootstepSfx(-1, number, 1.0f, ATTN_NORM);
-                //S_StartSound(NULL, number, CHAN_BODY, cl_sfx_footsteps[r], 1, ATTN_NORM, 0);
-                cl_laststep = r;
-            }
             CL_PlayFootstepSfx(-1, number, 1.0f, ATTN_NORM);
         }
         break;
@@ -627,9 +611,9 @@ static void CL_AddPacketEntities(void)
         }
 
 #if USE_AQTION
-		if (IS_INDICATOR(renderfx) && !cl_indicators->integer && cls.demo.playback) {
-			goto skip;
-		}
+        if (IS_INDICATOR(renderfx) && !cl_indicators->integer && cls.demo.playback) {
+            goto skip;
+        }
 #endif
         if ((effects & EF_GIB) && !cl_gibs->integer)
             goto skip;
@@ -1323,7 +1307,7 @@ void CL_CalcViewValues(void)
         float backlerp = lerp - 1.0f;
 
         VectorMA(cl.predicted_origin, backlerp, cl.prediction_error, cl.refdef.vieworg);
-		LerpVector(ops->viewoffset, ps->viewoffset, lerp, viewoffset);
+        LerpVector(ops->viewoffset, ps->viewoffset, lerp, viewoffset);
 
         // smooth out stair climbing
         if (cl.predicted_step < 127 * 0.125f) {
@@ -1333,16 +1317,16 @@ void CL_CalcViewValues(void)
             cl.refdef.vieworg[2] -= cl.predicted_step * (100 - delta) * 0.01f;
         }
 
-		if (cl_predict_crouch->integer == 2 || (cl_predict_crouch->integer && cl.view_predict))
-		{
+        if (cl_predict_crouch->integer == 2 || (cl_predict_crouch->integer && cl.view_predict))
+        {
 #if USE_FPS
-			viewoffset[2] = cl.predicted_viewheight[1];
-			viewoffset[2] -= (cl.predicted_viewheight[1] - cl.predicted_viewheight[0]) * cl.keylerpfrac;
+            viewoffset[2] = cl.predicted_viewheight[1];
+            viewoffset[2] -= (cl.predicted_viewheight[1] - cl.predicted_viewheight[0]) * cl.keylerpfrac;
 #else
-			viewoffset[2] = cl.predicted_viewheight[1];
-			viewoffset[2] -= (cl.predicted_viewheight[1] - cl.predicted_viewheight[0]) * lerp;
+            viewoffset[2] = cl.predicted_viewheight[1];
+            viewoffset[2] -= (cl.predicted_viewheight[1] - cl.predicted_viewheight[0]) * lerp;
 #endif
-		}
+        }
 
     } else {
         int i;
@@ -1353,7 +1337,7 @@ void CL_CalcViewValues(void)
                 lerp * (ps->pmove.origin[i] - ops->pmove.origin[i]));
         }
 
-		LerpVector(ops->viewoffset, ps->viewoffset, lerp, viewoffset);
+        LerpVector(ops->viewoffset, ps->viewoffset, lerp, viewoffset);
     }
 
     // if not running a demo or on a locked frame, add the local angle movement
